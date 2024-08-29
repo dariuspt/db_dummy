@@ -21,7 +21,7 @@ DB_PORT = os.getenv("DB_PORT", 5432)
 
 # Construct the database URL in the format required by most database clients.
 # This URL includes the database type (postgresql), user, password, host, port, and database name.
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Print a confirmation message to indicate that the database URL has been configured successfully.
 print("Database URL configured successfully.")
