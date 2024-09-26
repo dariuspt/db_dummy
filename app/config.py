@@ -4,17 +4,17 @@ import os  # Import the os module to access environment variables
 # The os.getenv() function is used to retrieve the value of an environment variable.
 
 # Database username. Default is 'postgres' if the DB_USER environment variable is not set.
-DB_USER = os.getenv("DB_USER", "postgres")
+DB_USER = os.getenv("DB_USER", "u7paluhujo6p51")
 
 # Database password. Default is 'Noch%40nge12' if the DB_PASS environment variable is not set.
 # The password is URL-encoded (%40 represents '@').
-DB_PASS = os.getenv("DB_PASS", "Noch%40nge12")
+DB_PASS = os.getenv("DB_PASS", "p1af0cc57920fcbf1b38a54f2f9404d5c8fe1269cf1e38e7b39a5b09c4876352a")
 
 # Database host. Default is 'localhost' if the DB_HOST environment variable is not set.
-DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_HOST = os.getenv("DB_HOST", "cf980tnnkgv1bp.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com")
 
 # Database name. Default is 'products_db' if the DB_NAME environment variable is not set.
-DB_NAME = os.getenv("DB_NAME", "products_db")
+DB_NAME = os.getenv("DB_NAME", "d9t3vfbpdctolc")
 
 # Database port. Default is 5432 (the default port for PostgreSQL) if the DB_PORT environment variable is not set.
 DB_PORT = os.getenv("DB_PORT", 5432)
