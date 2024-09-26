@@ -5,8 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="52cab829-419d-4b49-9a89-15e5cde50038" name="Changes" comment="db_be_functionala">
-      <change afterPath="$PROJECT_DIR$/Procfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/runtime.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -70,7 +69,7 @@
       <workItem from="1724713020854" duration="831000" />
       <workItem from="1724714207147" duration="1926000" />
       <workItem from="1724757233441" duration="17393000" />
-      <workItem from="1724942366635" duration="7466000" />
+      <workItem from="1724942366635" duration="8390000" />
     </task>
     <task id="LOCAL-00001" summary="db_be_functionala">
       <created>1724719469919</created>
