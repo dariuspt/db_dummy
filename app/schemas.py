@@ -8,6 +8,8 @@ class ProductBase(BaseModel):
     description: Optional[str] = None  # Description of the product (optional)
     price: float  # Price of the product (required)
     stock: int  # Stock of the product (required)
+    category: str
+    subcategory: str
 
 # Schema for creating a product
 class ProductCreate(ProductBase):
