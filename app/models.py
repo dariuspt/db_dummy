@@ -9,7 +9,8 @@ class Product(Base):  # Define the Product model that inherits from Base
     description = Column(String, nullable=True)  # Optional description of the product
     price = Column(Float, nullable=False)  # Price of the product, must be greater than 0
     stock = Column(Integer, nullable=False)  # Stock quantity of the product, must be non-negative
-
+    category = Column(String, nullable=True)
+    subcategory = Column(String, nullable=True)
     # Relationship to OrderItem; one Product can be associated with multiple OrderItems
     order_items = relationship("OrderItem", back_populates="product")
 
