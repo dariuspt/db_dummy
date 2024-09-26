@@ -23,6 +23,10 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+
+@app.get("/")
+async def root():
+    return {"message": "Hello World"}
 # Event to run when the application starts up
 @app.on_event("startup")
 async def startup():
