@@ -6,4 +6,4 @@ asyncpg==0.28.0
 pydantic==2.8.2
 python-dotenv==1.0.0
 gunicorn==20.1.0
-
+cloudinary
