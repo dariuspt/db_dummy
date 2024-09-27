@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text, func
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -6,11 +6,14 @@ class Product(Base):  # Define the Product model that inherits from Base
     __tablename__ = "products"  # Specify the name of the table in the database
     id = Column(Integer, primary_key=True, index=True)  # Primary key column
     name = Column(String, index=True, nullable=False)  # Name of the product, must be unique and cannot be null
-    description = Column(String, nullable=True)  # Optional description of the product
+    producer = Column(String, index=True, nullable=False)  # Producer of the product, cannot be null
+    description = Column(Text, nullable=True)  # Optional description of the product (Text allows long descriptions)
     price = Column(Float, nullable=False)  # Price of the product, must be greater than 0
     stock = Column(Integer, nullable=False)  # Stock quantity of the product, must be non-negative
     category = Column(String, nullable=True)
     subcategory = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)  # URL to store product image
+
     # Relationship to OrderItem; one Product can be associated with multiple OrderItems
     order_items = relationship("OrderItem", back_populates="product")
 

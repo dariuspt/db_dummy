@@ -1,17 +1,14 @@
 from fastapi import FastAPI, Depends  # Import FastAPI and Depends for dependency injection
-from .database import database, metadata, get_db  # Import database connection and get_db dependency
+from .database import database, metadata  # Import database connection and metadata
 from .routers import products, orders, order_items  # Import the routers
 from fastapi.middleware.cors import CORSMiddleware  # Import CORS middleware
-from sqlalchemy.orm import Session  # To manage database sessions
-from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from .config import DATABASE_URL  # Import the database URL and Cloudinary config from config.py
+import cloudinary
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 # Initialize the FastAPI application
 app = FastAPI()
-
-# Include the routers for products, orders, and order_items
-app.include_router(products.router, prefix="/products", tags=["products"])
-app.include_router(orders.router, prefix="/orders", tags=["orders"])
-app.include_router(order_items.router, prefix="/order_items", tags=["order_items"])
 
 # Add middleware to handle CORS (Cross-Origin Resource Sharing) issues
 app.add_middleware(
@@ -22,14 +19,18 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+# Create a new database engine using the asyncpg driver
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+# Create a session maker bound to the engine
+async_session_maker = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 # Dependency for providing database sessions
-def get_db():
-    db = database.sessionmaker()  # Create a new session
-    try:
-        yield db  # Provide the session to the request
-    finally:
-        db.close()  # Ensure the session is closed after the request
+async def get_db():
+    async with async_session_maker() as session:
+        yield session  # Provide the session to the request
 
 
 @app.get("/")
@@ -47,3 +48,9 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()  # Disconnect from the database when the application stops
+
+
+# Include the routers for products, orders, and order_items
+app.include_router(products.router, prefix="/products", tags=["products"])
+app.include_router(orders.router, prefix="/orders", tags=["orders"])
+app.include_router(order_items.router, prefix="/order_items", tags=["order_items"])

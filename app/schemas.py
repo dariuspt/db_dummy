@@ -5,6 +5,7 @@ from typing import List, Optional
 # Base schema for product properties
 class ProductBase(BaseModel):
     name: str  # Name of the product (required)
+    producer: str  # Producer of the product (required)
     description: Optional[str] = None  # Description of the product (optional)
     price: float  # Price of the product (required)
     stock: int  # Stock of the product (required)
@@ -19,9 +20,10 @@ class ProductCreate(ProductBase):
 class ProductUpdate(ProductBase):
     pass  # Inherits fields from ProductBase
 
-# Schema for a product response that includes an ID
+# Schema for a product response that includes an ID and image_url
 class Product(ProductBase):
     id: int  # Unique identifier for the product
+    image_url: Optional[str]  # URL of the product image (optional)
 
     class Config:
         orm_mode = True  # Enables compatibility with ORM models
