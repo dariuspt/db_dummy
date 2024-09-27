@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="52cab829-419d-4b49-9a89-15e5cde50038" name="Changes" comment="db_be_functionala">
-      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/db_be.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/db_be.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-    </list>
+    <list default="true" id="52cab829-419d-4b49-9a89-15e5cde50038" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,6 +19,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/app" />
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/venv/Lib/site-packages/pydantic/_internal/_config.py" root0="FORCE_HIGHLIGHTING" />
@@ -73,7 +68,7 @@
       <workItem from="1724714207147" duration="1926000" />
       <workItem from="1724757233441" duration="17393000" />
       <workItem from="1724942366635" duration="8390000" />
-      <workItem from="1727440932339" duration="3739000" />
+      <workItem from="1727440932339" duration="4091000" />
     </task>
     <task id="LOCAL-00001" summary="db_be_functionala">
       <created>1724719469919</created>
@@ -124,7 +119,14 @@
       <option name="project" value="LOCAL" />
       <updated>1727393311911</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="db_be_functionala">
+      <created>1727444823554</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1727444823554</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
