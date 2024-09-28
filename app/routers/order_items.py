@@ -10,6 +10,12 @@ router = APIRouter()
 async def add_item_to_basket(order_item_data: schemas.OrderItemCreate, session: AsyncSession = Depends(get_session)):
     """
     Add an item to the basket (order items), or increase the quantity if it already exists.
+
+    Args:
+        order_item_data (schemas.OrderItemCreate): The order item data (product ID, quantity).
+
+    Returns:
+        schemas.OrderItem: The created or updated order item data.
     """
     try:
         # Check if the item already exists in the basket
@@ -29,6 +35,12 @@ async def add_item_to_basket(order_item_data: schemas.OrderItemCreate, session: 
 async def fetch_order_item(order_item_id: int, session: AsyncSession = Depends(get_session)):
     """
     Retrieve a specific order item by its ID.
+
+    Args:
+        order_item_id (int): The ID of the order item to retrieve.
+
+    Returns:
+        schemas.OrderItem: The order item data.
     """
     order_item = await crud.fetch_order_item_by_id(session, order_item_id)
     if not order_item:
@@ -39,6 +51,12 @@ async def fetch_order_item(order_item_id: int, session: AsyncSession = Depends(g
 async def fetch_items_in_basket(order_id: int, session: AsyncSession = Depends(get_session)):
     """
     Retrieve all items in the user's basket (order items) for a specific order.
+
+    Args:
+        order_id (int): The ID of the order to fetch its items.
+
+    Returns:
+        list[schemas.OrderItem]: A list of order items associated with the order.
     """
     order_items = await crud.fetch_items_by_order_id(session, order_id)
     if not order_items:
@@ -49,6 +67,13 @@ async def fetch_items_in_basket(order_id: int, session: AsyncSession = Depends(g
 async def modify_item_quantity(order_item_id: int, order_item_update: schemas.OrderItemUpdate, session: AsyncSession = Depends(get_session)):
     """
     Update the quantity of an existing item in the basket.
+
+    Args:
+        order_item_id (int): The ID of the order item to update.
+        order_item_update (schemas.OrderItemUpdate): The updated order item data (e.g., updated quantity).
+
+    Returns:
+        schemas.OrderItem: The updated order item data.
     """
     try:
         updated_order_item = await crud.modify_order_item_quantity(session, order_item_id, order_item_update)
@@ -62,6 +87,12 @@ async def modify_item_quantity(order_item_id: int, order_item_update: schemas.Or
 async def remove_item_from_basket(order_item_id: int, session: AsyncSession = Depends(get_session)):
     """
     Remove an item from the basket by its ID.
+
+    Args:
+        order_item_id (int): The ID of the order item to remove.
+
+    Returns:
+        dict: A message confirming the item was removed from the basket.
     """
     success = await crud.remove_item_from_order(session, order_item_id)
     if not success:
@@ -72,6 +103,12 @@ async def remove_item_from_basket(order_item_id: int, session: AsyncSession = De
 async def confirm_order(order_id: int, session: AsyncSession = Depends(get_session)):
     """
     Confirm the order, reducing stock from the products table and finalizing the order.
+
+    Args:
+        order_id (int): The ID of the order to confirm.
+
+    Returns:
+        dict: A success message indicating the order was confirmed and stock was updated.
     """
     try:
         success = await crud.confirm_order(session, order_id)
