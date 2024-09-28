@@ -95,7 +95,7 @@ async def get_products():
     return await crud.get_all_products()
 
 
-# Update a product by ID with optional image upload
+# Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
     product_id: int,
