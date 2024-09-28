@@ -63,7 +63,7 @@ async def create_product(
 
 # Get a product by ID
 @router.get("/{product_id}", response_model=schemas.Product)
-def read_product(product_id: int, db: Session = Depends(get_db)):
+async def read_product(product_id: int, db: Session = Depends(get_db)):
     """
     Retrieve a product by its ID.
 
@@ -74,10 +74,13 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
     Returns:
         Product: The product data.
     """
-    product = crud.get_product(product_id=product_id)
-    if product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
+    try:
+        product = await crud.get_product(product_id=product_id)
+        if product is None:
+            raise HTTPException(status_code=404, detail="Product not found")
+        return product
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 # Get all products
