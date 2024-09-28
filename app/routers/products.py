@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File  # Import necessary FastAPI classes
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form  # Import necessary FastAPI classes
 import cloudinary.uploader  # Cloudinary for image uploads
 from sqlalchemy.orm import Session
 from .. import crud, schemas  # Import CRUD operations and Pydantic schemas
@@ -9,7 +9,13 @@ router = APIRouter()  # Create a new router instance
 # Create a new product with optional image upload
 @router.post("/", response_model=schemas.Product)
 async def create_product(
-    product: schemas.ProductCreate,
+    name: str = Form(...),
+    producer: str = Form(...),
+    description: str = Form(None),
+    price: float = Form(...),
+    stock: int = Form(...),
+    category: str = Form(...),
+    subcategory: str = Form(...),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: Session = Depends(get_db)
 ):
@@ -17,7 +23,13 @@ async def create_product(
     Create a new product, and optionally upload an image to Cloudinary.
 
     Args:
-        product (ProductCreate): The product data to create.
+        name (str): The product name.
+        producer (str): The product producer.
+        description (str): The product description (optional).
+        price (float): The price of the product.
+        stock (int): The stock of the product.
+        category (str): The product category.
+        subcategory (str): The product subcategory.
         image (UploadFile): Optional image file for product image.
         db: Database session dependency.
 
@@ -34,8 +46,20 @@ async def create_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
+    # Prepare the product creation data
+    product_data = schemas.ProductCreate(
+        name=name,
+        producer=producer,
+        description=description,
+        price=price,
+        stock=stock,
+        category=category,
+        subcategory=subcategory
+    )
+
     # Pass the image URL to the product creation function
-    return await crud.create_product(product=product, image_url=image_url)
+    return await crud.create_product(product=product_data, image_url=image_url)
+
 
 # Get a product by ID
 @router.get("/{product_id}", response_model=schemas.Product)
@@ -55,6 +79,7 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
+
 # Get all products
 @router.get("/", response_model=list[schemas.Product])
 async def get_products():
@@ -66,11 +91,18 @@ async def get_products():
     """
     return await crud.get_all_products()
 
+
 # Update a product by ID with optional image upload
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
     product_id: int,
-    product: schemas.ProductUpdate,
+    name: str = Form(...),
+    producer: str = Form(...),
+    description: str = Form(None),
+    price: float = Form(...),
+    stock: int = Form(...),
+    category: str = Form(...),
+    subcategory: str = Form(...),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: Session = Depends(get_db)
 ):
@@ -79,7 +111,13 @@ async def update_product(
 
     Args:
         product_id (int): The ID of the product to update.
-        product (ProductUpdate): The updated product data.
+        name (str): The updated product name.
+        producer (str): The updated product producer.
+        description (str): The updated product description (optional).
+        price (float): The updated price of the product.
+        stock (int): The updated stock of the product.
+        category (str): The updated product category.
+        subcategory (str): The updated product subcategory.
         image (UploadFile): Optional image file for product image.
         db: Database session dependency.
 
@@ -96,11 +134,23 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
+    # Prepare the product update data
+    product_data = schemas.ProductUpdate(
+        name=name,
+        producer=producer,
+        description=description,
+        price=price,
+        stock=stock,
+        category=category,
+        subcategory=subcategory
+    )
+
     # Pass the image URL to the update function
-    updated_product = await crud.update_product(product_id=product_id, product=product, image_url=image_url)
+    updated_product = await crud.update_product(product_id=product_id, product=product_data, image_url=image_url)
     if updated_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
     return updated_product
+
 
 # Delete a product by ID
 @router.delete("/{product_id}")
