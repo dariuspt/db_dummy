@@ -19,17 +19,18 @@ async def add_item_to_basket(order_item_data: schemas.OrderItemCreate, session: 
     """
     try:
         # Check if the item already exists in the basket
-        existing_item = await crud.get_order_item_by_product(session, order_item_data.order_id, order_item_data.product_id)
+        existing_item = await crud.get_order_item_by_product(order_item_data.order_id, order_item_data.product_id)
         if existing_item:
             # If it exists, update the quantity
-            updated_item = await crud.increase_item_quantity(session, existing_item.id, order_item_data.quantity)
+            updated_item = await crud.update_order_item_quantity(existing_item.id, order_item_data)
             return updated_item
 
         # If not, create a new order item
-        new_order_item = await crud.add_item_to_order(session, order_item_data)
+        new_order_item = await crud.add_item_to_order(order_item_data.order_id, order_item_data)
         return new_order_item
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.get("/{order_item_id}", response_model=schemas.OrderItem)
 async def fetch_order_item(order_item_id: int, session: AsyncSession = Depends(get_session)):
@@ -42,10 +43,11 @@ async def fetch_order_item(order_item_id: int, session: AsyncSession = Depends(g
     Returns:
         schemas.OrderItem: The order item data.
     """
-    order_item = await crud.fetch_order_item_by_id(session, order_item_id)
+    order_item = await crud.get_order_item_by_id(order_item_id)
     if not order_item:
         raise HTTPException(status_code=404, detail="Order item not found")
     return order_item
+
 
 @router.get("/order/{order_id}", response_model=list[schemas.OrderItem])
 async def fetch_items_in_basket(order_id: int, session: AsyncSession = Depends(get_session)):
@@ -58,10 +60,11 @@ async def fetch_items_in_basket(order_id: int, session: AsyncSession = Depends(g
     Returns:
         list[schemas.OrderItem]: A list of order items associated with the order.
     """
-    order_items = await crud.fetch_items_by_order_id(session, order_id)
+    order_items = await crud.get_order_items_by_order(order_id)
     if not order_items:
         raise HTTPException(status_code=404, detail="No items found in the basket for this order")
     return order_items
+
 
 @router.put("/{order_item_id}", response_model=schemas.OrderItem)
 async def modify_item_quantity(order_item_id: int, order_item_update: schemas.OrderItemUpdate, session: AsyncSession = Depends(get_session)):
@@ -76,12 +79,13 @@ async def modify_item_quantity(order_item_id: int, order_item_update: schemas.Or
         schemas.OrderItem: The updated order item data.
     """
     try:
-        updated_order_item = await crud.modify_order_item_quantity(session, order_item_id, order_item_update)
+        updated_order_item = await crud.update_order_item_quantity(order_item_id, order_item_update)
         if not updated_order_item:
             raise HTTPException(status_code=404, detail="Order item not found")
         return updated_order_item
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.delete("/{order_item_id}", response_model=dict)
 async def remove_item_from_basket(order_item_id: int, session: AsyncSession = Depends(get_session)):
@@ -94,10 +98,11 @@ async def remove_item_from_basket(order_item_id: int, session: AsyncSession = De
     Returns:
         dict: A message confirming the item was removed from the basket.
     """
-    success = await crud.remove_item_from_order(session, order_item_id)
+    success = await crud.delete_order_item(order_item_id)
     if not success:
         raise HTTPException(status_code=404, detail="Order item not found")
     return {"detail": "Item removed from the basket"}
+
 
 @router.post("/confirm-order/{order_id}", response_model=dict)
 async def confirm_order(order_id: int, session: AsyncSession = Depends(get_session)):
@@ -111,7 +116,7 @@ async def confirm_order(order_id: int, session: AsyncSession = Depends(get_sessi
         dict: A success message indicating the order was confirmed and stock was updated.
     """
     try:
-        success = await crud.confirm_order(session, order_id)
+        success = await crud.confirm_order(order_id)
         if not success:
             raise HTTPException(status_code=400, detail="Order confirmation failed")
         return {"detail": "Order confirmed, stock updated"}
