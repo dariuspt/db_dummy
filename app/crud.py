@@ -77,14 +77,13 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
     """
     try:
         # Convert the product Pydantic model to a dictionary, excluding unset fields
-        # This ensures only the fields that were provided by the user will be updated
         product_data = product.dict(exclude_unset=True)
 
         # If an image URL is provided, include it in the product data
         if image_url:
             product_data["image_url"] = image_url
 
-        # If no fields are provided for update, raise an exception
+        # If no fields are provided for update, return an error
         if not product_data:
             raise ValueError("No fields provided for update")
 
@@ -103,13 +102,18 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
 
     except SQLAlchemyError as e:
         # Log the SQLAlchemy error and raise a generic database exception
-        print(f"Error updating product {product_id}: {str(e)}")
-        raise Exception("Database error occurred while updating the product.")
+        print(f"SQLAlchemy error updating product {product_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error occurred while updating the product.")
+
+    except ValueError as ve:
+        # Handle the specific case of no fields provided
+        print(f"Validation error: {str(ve)}")
+        raise HTTPException(status_code=400, detail=str(ve))
 
     except Exception as e:
-        # Catch any unexpected errors that may occur during the update process
+        # Catch any unexpected errors
         print(f"Unexpected error updating product {product_id}: {str(e)}")
-        raise Exception("Unexpected error occurred while updating the product.")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred while updating the product.")
 
 # Delete a product by its ID
 async def delete_product(product_id: int):

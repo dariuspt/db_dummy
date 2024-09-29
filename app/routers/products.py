@@ -99,13 +99,13 @@ async def get_products():
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
     product_id: int,
-    name: str = Form(None),  # Optional: The updated product name
-    producer: str = Form(None),  # Optional: The updated product producer
-    description: str = Form(None),  # Optional: The updated product description
-    price: float = Form(None),  # Optional: The updated price of the product
-    stock: int = Form(None),  # Optional: The updated stock of the product
-    category: str = Form(None),  # Optional: The updated product category
-    subcategory: str = Form(None),  # Optional: The updated product subcategory
+    name: str = Form(None),  # Optional parameters
+    producer: str = Form(None),
+    description: str = Form(None),
+    price: float = Form(None),
+    stock: int = Form(None),
+    category: str = Form(None),
+    subcategory: str = Form(None),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: Session = Depends(get_db)
 ):
@@ -121,13 +121,13 @@ async def update_product(
         stock (int): The updated stock of the product (optional).
         category (str): The updated product category (optional).
         subcategory (str): The updated product subcategory (optional).
-        image (UploadFile): The optional image file to upload to Cloudinary.
+        image (UploadFile): Optional image file for product image.
         db: The database session dependency.
 
     Returns:
         Product: The updated product data.
     """
-    image_url = None  # Default image URL is set to None
+    image_url = None  # Default image URL is None
 
     # If a new image is provided, upload it to Cloudinary
     if image:
@@ -137,7 +137,7 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Prepare the product update data using the ProductUpdate schema
+    # Prepare the product update data
     product_data = schemas.ProductUpdate(
         name=name,
         producer=producer,
@@ -148,10 +148,10 @@ async def update_product(
         subcategory=subcategory
     )
 
-    # Only pass fields that were actually provided (not None) to the update function
+    # Filter out None values from the product_data to update only the provided fields
     update_data = {key: value for key, value in product_data.dict().items() if value is not None}
 
-    # Check if at least one field was provided
+    # If no fields provided and no image, raise an error
     if not update_data and not image_url:
         raise HTTPException(status_code=400, detail="No fields provided for update")
 
