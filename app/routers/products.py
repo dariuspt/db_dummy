@@ -98,16 +98,16 @@ async def get_products():
 # Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
-        product_id: int,
-        name: str = Form(None),  # Optional: The updated product name
-        producer: str = Form(None),  # Optional: The updated product producer
-        description: str = Form(None),  # Optional: The updated product description
-        price: float = Form(None),  # Optional: The updated price of the product
-        stock: int = Form(None),  # Optional: The updated stock of the product
-        category: str = Form(None),  # Optional: The updated product category
-        subcategory: str = Form(None),  # Optional: The updated product subcategory
-        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-        db: Session = Depends(get_db)
+    product_id: int,
+    name: str = Form(None),  # Optional: The updated product name
+    producer: str = Form(None),  # Optional: The updated product producer
+    description: str = Form(None),  # Optional: The updated product description
+    price: float = Form(None),  # Optional: The updated price of the product
+    stock: int = Form(None),  # Optional: The updated stock of the product
+    category: str = Form(None),  # Optional: The updated product category
+    subcategory: str = Form(None),  # Optional: The updated product subcategory
+    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+    db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -132,16 +132,12 @@ async def update_product(
     # If a new image is provided, upload it to Cloudinary
     if image:
         try:
-            # Use Cloudinary to upload the provided image file
             upload_result = cloudinary.uploader.upload(image.file)
-            # Get the secure URL of the uploaded image
             image_url = upload_result.get("secure_url")
         except Exception as e:
-            # If the image upload fails, raise an HTTP exception with a 400 status code
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
     # Prepare the product update data using the ProductUpdate schema
-    # Only the fields that are provided will be included in the update
     product_data = schemas.ProductUpdate(
         name=name,
         producer=producer,
@@ -152,15 +148,19 @@ async def update_product(
         subcategory=subcategory
     )
 
-    # Call the CRUD function to update the product
-    # Pass the image URL if a new image was uploaded
+    # Only pass fields that were actually provided (not None) to the update function
+    update_data = {key: value for key, value in product_data.dict().items() if value is not None}
+
+    # Check if at least one field was provided
+    if not update_data and not image_url:
+        raise HTTPException(status_code=400, detail="No fields provided for update")
+
+    # Pass the image URL (if any) and the filtered update data to the CRUD function
     updated_product = await crud.update_product(product_id=product_id, product=product_data, image_url=image_url)
 
-    # If the product is not found, raise a 404 error
     if updated_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Return the updated product data
     return updated_product
 
 # Delete a product by ID

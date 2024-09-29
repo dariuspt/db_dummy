@@ -85,7 +85,6 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
             product_data["image_url"] = image_url
 
         # If no fields are provided for update, raise an exception
-        # This prevents unnecessary database operations when nothing needs to be updated
         if not product_data:
             raise ValueError("No fields provided for update")
 
