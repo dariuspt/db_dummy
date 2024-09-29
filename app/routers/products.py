@@ -98,16 +98,16 @@ async def get_products():
 # Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
-    product_id: int,
-    name: str = Form(None),  # Optional parameters
-    producer: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    stock: int = Form(None),
-    category: str = Form(None),
-    subcategory: str = Form(None),
-    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-    db: Session = Depends(get_db)
+        product_id: int,
+        name: str = None,  # Optional parameters, no longer required
+        producer: str = None,
+        description: str = None,
+        price: float = None,
+        stock: int = None,
+        category: str = None,
+        subcategory: str = None,
+        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+        db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -121,7 +121,7 @@ async def update_product(
         stock (int): The updated stock of the product (optional).
         category (str): The updated product category (optional).
         subcategory (str): The updated product subcategory (optional).
-        image (UploadFile): Optional image file for product image.
+        image (UploadFile): Optional image file for product image (optional).
         db: The database session dependency.
 
     Returns:
@@ -137,26 +137,18 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Prepare the product update data
-    product_data = schemas.ProductUpdate(
+    # Pass the image URL and parameters to the update function
+    updated_product = await crud.update_product(
+        product_id=product_id,
         name=name,
         producer=producer,
         description=description,
         price=price,
         stock=stock,
         category=category,
-        subcategory=subcategory
+        subcategory=subcategory,
+        image_url=image_url
     )
-
-    # Filter out None values from the product_data to update only the provided fields
-    update_data = {key: value for key, value in product_data.dict().items() if value is not None}
-
-    # If no fields provided and no image, raise an error
-    if not update_data and not image_url:
-        raise HTTPException(status_code=400, detail="No fields provided for update")
-
-    # Pass the image URL (if any) and the filtered update data to the CRUD function
-    updated_product = await crud.update_product(product_id=product_id, product=product_data, image_url=image_url)
 
     if updated_product is None:
         raise HTTPException(status_code=404, detail="Product not found")

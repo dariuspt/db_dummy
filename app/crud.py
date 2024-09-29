@@ -62,33 +62,59 @@ async def get_product(product_id: int):
     return dict(product) if product else None  # Convert to dict if found, return None if not
 
 
-# Function to update an existing product
-async def update_product(product_id: int, product: ProductUpdate, image_url: str = None):
+# Update an existing product by its ID
+async def update_product(product_id: int,
+                         name: str = None,
+                         producer: str = None,
+                         description: str = None,
+                         price: float = None,
+                         stock: int = None,
+                         category: str = None,
+                         subcategory: str = None,
+                         image_url: str = None):
     """
-    Update an existing product by its ID with optional image_url.
+    Update an existing product by its ID with optional fields.
 
     Args:
         product_id (int): The ID of the product to update.
-        product (ProductUpdate): The updated product data.
+        name (str): The updated product name (optional).
+        producer (str): The updated product producer (optional).
+        description (str): The updated product description (optional).
+        price (float): The updated price of the product (optional).
+        stock (int): The updated stock of the product (optional).
+        category (str): The updated product category (optional).
+        subcategory (str): The updated product subcategory (optional).
         image_url (str): The new URL of the product image uploaded to Cloudinary (optional).
 
     Returns:
         dict: The updated product data if successful, None if not found.
     """
     try:
-        # Convert the product Pydantic model to a dictionary, excluding unset fields
-        product_data = product.dict(exclude_unset=True)
+        # Create a dictionary to hold the fields to update, only if they're not None
+        update_data = {}
+        if name is not None:
+            update_data["name"] = name
+        if producer is not None:
+            update_data["producer"] = producer
+        if description is not None:
+            update_data["description"] = description
+        if price is not None:
+            update_data["price"] = price
+        if stock is not None:
+            update_data["stock"] = stock
+        if category is not None:
+            update_data["category"] = category
+        if subcategory is not None:
+            update_data["subcategory"] = subcategory
+        if image_url is not None:
+            update_data["image_url"] = image_url
 
-        # If an image URL is provided, include it in the product data
-        if image_url:
-            product_data["image_url"] = image_url
-
-        # If no fields are provided for update, return an error
-        if not product_data:
-            raise ValueError("No fields provided for update")
+        # If no fields were provided, raise an error
+        if not update_data:
+            raise ValueError("No fields provided to update")
 
         # Prepare the SQLAlchemy query to update the product in the database
-        query = Product.__table__.update().where(Product.id == product_id).values(product_data)
+        query = Product.__table__.update().where(Product.id == product_id).values(update_data)
 
         # Execute the update query
         result = await database.execute(query)
@@ -98,7 +124,7 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
             return None  # Return None to indicate the product was not found
 
         # Return the updated product data, including the product ID
-        return {**product_data, "id": product_id}
+        return {**update_data, "id": product_id}
 
     except SQLAlchemyError as e:
         # Log the SQLAlchemy error and raise a generic database exception
