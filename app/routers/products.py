@@ -95,16 +95,17 @@ async def get_products():
     return await crud.get_all_products()
 
 
+# Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
         product_id: int,
-        name: str = Form(...),
-        producer: str = Form(...),
-        description: str = Form(None),
-        price: float = Form(...),
-        stock: int = Form(...),
-        category: str = Form(...),
-        subcategory: str = Form(...),
+        name: str = Form(None),  # Optional: The updated product name
+        producer: str = Form(None),  # Optional: The updated product producer
+        description: str = Form(None),  # Optional: The updated product description
+        price: float = Form(None),  # Optional: The updated price of the product
+        stock: int = Form(None),  # Optional: The updated stock of the product
+        category: str = Form(None),  # Optional: The updated product category
+        subcategory: str = Form(None),  # Optional: The updated product subcategory
         image: UploadFile = File(None),  # Optional image file for Cloudinary upload
         db: Session = Depends(get_db)
 ):
@@ -113,31 +114,34 @@ async def update_product(
 
     Args:
         product_id (int): The ID of the product to update.
-        name (str): The updated product name.
-        producer (str): The updated product producer.
+        name (str): The updated product name (optional).
+        producer (str): The updated product producer (optional).
         description (str): The updated product description (optional).
-        price (float): The updated price of the product.
-        stock (int): The updated stock of the product.
-        category (str): The updated product category.
-        subcategory (str): The updated product subcategory.
-        image (UploadFile): Optional image file for product image.
-        db: Database session dependency.
+        price (float): The updated price of the product (optional).
+        stock (int): The updated stock of the product (optional).
+        category (str): The updated product category (optional).
+        subcategory (str): The updated product subcategory (optional).
+        image (UploadFile): The optional image file to upload to Cloudinary.
+        db: The database session dependency.
 
     Returns:
         Product: The updated product data.
     """
-    image_url = None  # Default image URL is None
+    image_url = None  # Default image URL is set to None
 
     # If a new image is provided, upload it to Cloudinary
     if image:
         try:
+            # Use Cloudinary to upload the provided image file
             upload_result = cloudinary.uploader.upload(image.file)
+            # Get the secure URL of the uploaded image
             image_url = upload_result.get("secure_url")
         except Exception as e:
-            print(f"Image upload error: {str(e)}")  # Log the error for debugging
+            # If the image upload fails, raise an HTTP exception with a 400 status code
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Prepare the product update data using the Pydantic model
+    # Prepare the product update data using the ProductUpdate schema
+    # Only the fields that are provided will be included in the update
     product_data = schemas.ProductUpdate(
         name=name,
         producer=producer,
@@ -148,11 +152,12 @@ async def update_product(
         subcategory=subcategory
     )
 
-    # Pass the product data and image URL to the update function in crud.py
+    # Call the CRUD function to update the product
+    # Pass the image URL if a new image was uploaded
     updated_product = await crud.update_product(product_id=product_id, product=product_data, image_url=image_url)
 
+    # If the product is not found, raise a 404 error
     if updated_product is None:
-        # If no product was updated, return a 404 error
         raise HTTPException(status_code=404, detail="Product not found")
 
     # Return the updated product data

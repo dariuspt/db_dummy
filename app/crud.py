@@ -61,7 +61,8 @@ async def get_product(product_id: int):
     product = await database.fetch_one(query)  # Fetch the single product from the database
     return dict(product) if product else None  # Convert to dict if found, return None if not
 
-# Update an existing product by its ID with optional image_url
+
+# Function to update an existing product
 async def update_product(product_id: int, product: ProductUpdate, image_url: str = None):
     """
     Update an existing product by its ID with optional image_url.
@@ -69,39 +70,47 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
     Args:
         product_id (int): The ID of the product to update.
         product (ProductUpdate): The updated product data.
-        image_url (str): The new URL of the product image uploaded to Cloudinary.
+        image_url (str): The new URL of the product image uploaded to Cloudinary (optional).
 
     Returns:
         dict: The updated product data if successful, None if not found.
     """
     try:
-        # Prepare product data for update, excluding unset fields
+        # Convert the product Pydantic model to a dictionary, excluding unset fields
+        # This ensures only the fields that were provided by the user will be updated
         product_data = product.dict(exclude_unset=True)
 
-        # If an image_url is provided, add it to product_data
+        # If an image URL is provided, include it in the product data
         if image_url:
             product_data["image_url"] = image_url
 
-        # Prepare the update query
+        # If no fields are provided for update, raise an exception
+        # This prevents unnecessary database operations when nothing needs to be updated
+        if not product_data:
+            raise ValueError("No fields provided for update")
+
+        # Prepare the SQLAlchemy query to update the product in the database
         query = Product.__table__.update().where(Product.id == product_id).values(product_data)
+
+        # Execute the update query
         result = await database.execute(query)
 
-        # Check if the update affected any rows (product exists and was updated)
+        # If no rows were affected, the product was not found
         if result == 0:
-            return None  # No rows affected, product not found
+            return None  # Return None to indicate the product was not found
 
         # Return the updated product data, including the product ID
         return {**product_data, "id": product_id}
 
     except SQLAlchemyError as e:
-        # Catch and log database-related errors
+        # Log the SQLAlchemy error and raise a generic database exception
         print(f"Error updating product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Database error occurred while updating the product.")
+        raise Exception("Database error occurred while updating the product.")
 
     except Exception as e:
-        # Catch all other potential errors
-        print(f"Unexpected error while updating product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error occurred while updating the product.")
+        # Catch any unexpected errors that may occur during the update process
+        print(f"Unexpected error updating product {product_id}: {str(e)}")
+        raise Exception("Unexpected error occurred while updating the product.")
 
 # Delete a product by its ID
 async def delete_product(product_id: int):
