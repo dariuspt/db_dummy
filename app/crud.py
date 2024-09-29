@@ -4,6 +4,8 @@ from .models import Product, Order, OrderItem  # Import the Product, Order, and 
 from .schemas import ProductCreate, ProductUpdate, OrderCreate, OrderItemCreate, OrderItemUpdate  # Import schemas for data validation
 from .database import database  # Import the async database connection
 from sqlalchemy.exc import SQLAlchemyError
+from fastapi import HTTPException
+
 
 # --- Product Management ---
 
@@ -73,20 +75,33 @@ async def update_product(product_id: int, product: ProductUpdate, image_url: str
         dict: The updated product data if successful, None if not found.
     """
     try:
-        product_data = product.dict(exclude_unset=True)  # Exclude fields that weren't updated
+        # Prepare product data for update, excluding unset fields
+        product_data = product.dict(exclude_unset=True)
+
+        # If an image_url is provided, add it to product_data
         if image_url:
-            product_data["image_url"] = image_url  # Update image URL if provided
+            product_data["image_url"] = image_url
 
-        query = Product.__table__.update().where(Product.id == product_id).values(product_data)  # Prepare update query
-        result = await database.execute(query)  # Execute the update query
+        # Prepare the update query
+        query = Product.__table__.update().where(Product.id == product_id).values(product_data)
+        result = await database.execute(query)
 
-        if result == 0:  # Check if any rows were affected (i.e., product was found)
-            return None  # Product not found
+        # Check if the update affected any rows (product exists and was updated)
+        if result == 0:
+            return None  # No rows affected, product not found
 
-        return {**product_data, "id": product_id}  # Return the updated product data
+        # Return the updated product data, including the product ID
+        return {**product_data, "id": product_id}
+
     except SQLAlchemyError as e:
+        # Catch and log database-related errors
         print(f"Error updating product {product_id}: {str(e)}")
-        raise Exception("Database error occurred while updating the product.")  # Raise exception for DB errors
+        raise HTTPException(status_code=500, detail="Database error occurred while updating the product.")
+
+    except Exception as e:
+        # Catch all other potential errors
+        print(f"Unexpected error while updating product {product_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error occurred while updating the product.")
 
 # Delete a product by its ID
 async def delete_product(product_id: int):

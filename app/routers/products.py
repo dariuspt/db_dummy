@@ -95,19 +95,18 @@ async def get_products():
     return await crud.get_all_products()
 
 
-# Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
-    product_id: int,
-    name: str = Form(...),
-    producer: str = Form(...),
-    description: str = Form(None),
-    price: float = Form(...),
-    stock: int = Form(...),
-    category: str = Form(...),
-    subcategory: str = Form(...),
-    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-    db: Session = Depends(get_db)
+        product_id: int,
+        name: str = Form(...),
+        producer: str = Form(...),
+        description: str = Form(None),
+        price: float = Form(...),
+        stock: int = Form(...),
+        category: str = Form(...),
+        subcategory: str = Form(...),
+        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+        db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -135,9 +134,10 @@ async def update_product(
             upload_result = cloudinary.uploader.upload(image.file)
             image_url = upload_result.get("secure_url")
         except Exception as e:
+            print(f"Image upload error: {str(e)}")  # Log the error for debugging
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Prepare the product update data
+    # Prepare the product update data using the Pydantic model
     product_data = schemas.ProductUpdate(
         name=name,
         producer=producer,
@@ -148,12 +148,15 @@ async def update_product(
         subcategory=subcategory
     )
 
-    # Pass the image URL to the update function
+    # Pass the product data and image URL to the update function in crud.py
     updated_product = await crud.update_product(product_id=product_id, product=product_data, image_url=image_url)
-    if updated_product is None:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return updated_product
 
+    if updated_product is None:
+        # If no product was updated, return a 404 error
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Return the updated product data
+    return updated_product
 
 # Delete a product by ID
 @router.delete("/{product_id}")
