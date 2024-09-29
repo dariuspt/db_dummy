@@ -95,19 +95,37 @@ async def get_products():
     return await crud.get_all_products()
 
 
+# Retrieve a product by ID to get its full details
+@router.get("/{product_id}", response_model=schemas.Product)
+async def get_product(product_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve a single product by its ID, returning all fields.
+
+    Args:
+        product_id (int): The ID of the product to retrieve.
+
+    Returns:
+        Product: The full product data.
+    """
+    product = await crud.get_product(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
 # Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
-    product_id: int,
-    name: str = Form(None),  # Optional parameters, can be None
-    producer: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    stock: int = Form(None),
-    category: str = Form(None),
-    subcategory: str = Form(None),
-    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-    db: Session = Depends(get_db)
+        product_id: int,
+        name: str = Form(None),
+        producer: str = Form(None),
+        description: str = Form(None),
+        price: float = Form(None),
+        stock: int = Form(None),
+        category: str = Form(None),
+        subcategory: str = Form(None),
+        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+        db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -121,7 +139,7 @@ async def update_product(
         stock (int): The updated stock of the product (optional).
         category (str): The updated product category (optional).
         subcategory (str): The updated product subcategory (optional).
-        image (UploadFile): Optional image file for product image (optional).
+        image (UploadFile): Optional image file for product image.
         db: The database session dependency.
 
     Returns:
@@ -137,16 +155,16 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Call CRUD function to update the product, passing any updated values
+    # Call CRUD function to update the product, passing only provided values
     updated_product = await crud.update_product(
         product_id=product_id,
-        name=name if name else None,
-        producer=producer if producer else None,
-        description=description if description else None,
-        price=price if price is not None else None,  # Ensure we don't pass empty price
-        stock=stock if stock is not None else None,  # Ensure we don't pass empty stock
-        category=category if category else None,
-        subcategory=subcategory if subcategory else None,
+        name=name if name != '' else None,
+        producer=producer if producer != '' else None,
+        description=description if description != '' else None,
+        price=price if price is not None else None,
+        stock=stock if stock is not None else None,
+        category=category if category != '' else None,
+        subcategory=subcategory if subcategory != '' else None,
         image_url=image_url
     )
 
