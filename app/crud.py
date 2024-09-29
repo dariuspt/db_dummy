@@ -90,23 +90,25 @@ async def update_product(product_id: int,
         dict: The updated product data if successful, None if not found.
     """
     try:
-        # Create a dictionary to hold the fields to update, only if they're not None
+        # Create a dictionary to hold the fields to update, only if they're not None or empty
         update_data = {}
-        if name is not None:
+
+        # Only include fields that are not None and are not empty strings
+        if name:
             update_data["name"] = name
-        if producer is not None:
+        if producer:
             update_data["producer"] = producer
-        if description is not None:
+        if description:
             update_data["description"] = description
-        if price is not None:
+        if price is not None:  # Important to allow zero values
             update_data["price"] = price
-        if stock is not None:
+        if stock is not None:  # Important to allow zero values
             update_data["stock"] = stock
-        if category is not None:
+        if category:
             update_data["category"] = category
-        if subcategory is not None:
+        if subcategory:
             update_data["subcategory"] = subcategory
-        if image_url is not None:
+        if image_url:
             update_data["image_url"] = image_url
 
         # If no fields were provided, raise an error
@@ -140,6 +142,7 @@ async def update_product(product_id: int,
         # Catch any unexpected errors
         print(f"Unexpected error updating product {product_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Unexpected error occurred while updating the product.")
+
 
 # Delete a product by its ID
 async def delete_product(product_id: int):

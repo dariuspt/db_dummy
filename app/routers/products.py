@@ -98,16 +98,16 @@ async def get_products():
 # Update an existing product by its ID and optionally upload a new image
 @router.put("/{product_id}", response_model=schemas.Product)
 async def update_product(
-        product_id: int,
-        name: str = None,  # Optional parameters, no longer required
-        producer: str = None,
-        description: str = None,
-        price: float = None,
-        stock: int = None,
-        category: str = None,
-        subcategory: str = None,
-        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-        db: Session = Depends(get_db)
+    product_id: int,
+    name: str = Form(None),  # Optional parameters, can be None
+    producer: str = Form(None),
+    description: str = Form(None),
+    price: float = Form(None),
+    stock: int = Form(None),
+    category: str = Form(None),
+    subcategory: str = Form(None),
+    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+    db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -137,16 +137,16 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Pass the image URL and parameters to the update function
+    # Call CRUD function to update the product, passing any updated values
     updated_product = await crud.update_product(
         product_id=product_id,
-        name=name,
-        producer=producer,
-        description=description,
-        price=price,
-        stock=stock,
-        category=category,
-        subcategory=subcategory,
+        name=name if name else None,
+        producer=producer if producer else None,
+        description=description if description else None,
+        price=price if price is not None else None,  # Ensure we don't pass empty price
+        stock=stock if stock is not None else None,  # Ensure we don't pass empty stock
+        category=category if category else None,
+        subcategory=subcategory if subcategory else None,
         image_url=image_url
     )
 
