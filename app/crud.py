@@ -62,87 +62,48 @@ async def get_product(product_id: int):
     return dict(product) if product else None  # Convert to dict if found, return None if not
 
 
-# Update an existing product by its ID
-async def update_product(product_id: int,
-                         name: str = None,
-                         producer: str = None,
-                         description: str = None,
-                         price: float = None,
-                         stock: int = None,
-                         category: str = None,
-                         subcategory: str = None,
-                         image_url: str = None):
+# Update an existing product by its ID with optional image_url
+async def update_product(product_id: int, product: ProductUpdate, image_url: str = None):
     """
-    Update an existing product by its ID with optional fields.
+    Update an existing product by its ID with optional image_url.
 
     Args:
         product_id (int): The ID of the product to update.
-        name (str): The updated product name (optional).
-        producer (str): The updated product producer (optional).
-        description (str): The updated product description (optional).
-        price (float): The updated price of the product (optional).
-        stock (int): The updated stock of the product (optional).
-        category (str): The updated product category (optional).
-        subcategory (str): The updated product subcategory (optional).
-        image_url (str): The new URL of the product image uploaded to Cloudinary (optional).
+        product (ProductUpdate): The updated product data.
+        image_url (str): The new URL of the product image uploaded to Cloudinary.
 
     Returns:
         dict: The updated product data if successful, None if not found.
     """
     try:
-        # Create a dictionary to hold the fields to update, only if they're not None or empty
-        update_data = {}
+        # Prepare product data for update, excluding unset fields
+        product_data = product.dict(exclude_unset=True)
 
-        # Only include fields that are not None and are not empty strings
-        if name:
-            update_data["name"] = name
-        if producer:
-            update_data["producer"] = producer
-        if description:
-            update_data["description"] = description
-        if price is not None:  # Important to allow zero values
-            update_data["price"] = price
-        if stock is not None:  # Important to allow zero values
-            update_data["stock"] = stock
-        if category:
-            update_data["category"] = category
-        if subcategory:
-            update_data["subcategory"] = subcategory
+        # If an image_url is provided, update the image_url field
         if image_url:
-            update_data["image_url"] = image_url
+            product_data["image_url"] = image_url
 
-        # If no fields were provided, raise an error
-        if not update_data:
-            raise ValueError("No fields provided to update")
+        if not product_data:
+            raise ValueError("No fields provided for update.")
 
-        # Prepare the SQLAlchemy query to update the product in the database
-        query = Product.__table__.update().where(Product.id == product_id).values(update_data)
-
-        # Execute the update query
+        # Prepare and execute the update query
+        query = Product.__table__.update().where(Product.id == product_id).values(product_data)
         result = await database.execute(query)
 
-        # If no rows were affected, the product was not found
+        # Check if any rows were affected (i.e., if the product was found and updated)
         if result == 0:
-            return None  # Return None to indicate the product was not found
+            return None  # Product not found
 
         # Return the updated product data, including the product ID
-        return {**update_data, "id": product_id}
+        return {**product_data, "id": product_id}
 
     except SQLAlchemyError as e:
-        # Log the SQLAlchemy error and raise a generic database exception
-        print(f"SQLAlchemy error updating product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Database error occurred while updating the product.")
-
-    except ValueError as ve:
-        # Handle the specific case of no fields provided
-        print(f"Validation error: {str(ve)}")
-        raise HTTPException(status_code=400, detail=str(ve))
+        print(f"Error updating product {product_id}: {str(e)}")
+        raise Exception("Database error occurred while updating the product.")
 
     except Exception as e:
-        # Catch any unexpected errors
-        print(f"Unexpected error updating product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error occurred while updating the product.")
-
+        print(f"Unexpected error occurred while updating product {product_id}: {str(e)}")
+        raise Exception("An unexpected error occurred while updating the product.")
 
 # Delete a product by its ID
 async def delete_product(product_id: int):
