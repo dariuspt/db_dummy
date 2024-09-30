@@ -3,6 +3,7 @@ import cloudinary.uploader  # Cloudinary for image uploads
 from sqlalchemy.orm import Session
 from .. import crud, schemas  # Import CRUD operations and Pydantic schemas
 from ..database import get_db  # Import the database session dependency
+from typing import Optional
 
 router = APIRouter()  # Create a new router instance
 
@@ -113,37 +114,21 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     return product
 
 
-# Update an existing product by its ID and optionally upload a new image
 @router.patch("/{product_id}", response_model=schemas.Product)
 async def update_product(
         product_id: int,
-        name: str = Form(None),
-        producer: str = Form(None),
-        description: str = Form(None),
-        price: float = Form(None),
-        stock: int = Form(None),
-        category: str = Form(None),
-        subcategory: str = Form(None),
-        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-        db: Session = Depends(get_db)
+        name: Optional[str] = Form(None),
+        producer: Optional[str] = Form(None),
+        description: Optional[str] = Form(None),
+        price: Optional[float] = Form(None),
+        stock: Optional[int] = Form(None),
+        category: Optional[str] = Form(None),
+        subcategory: Optional[str] = Form(None),
+        image: UploadFile = File(None),
+        db: Session = Depends(get_db),
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
-
-    Args:
-        product_id (int): The ID of the product to update.
-        name (str): The updated product name.
-        producer (str): The updated product producer.
-        description (str): The updated product description (optional).
-        price (float): The updated price of the product.
-        stock (int): The updated stock of the product.
-        category (str): The updated product category.
-        subcategory (str): The updated product subcategory.
-        image (UploadFile): Optional image file for product image.
-        db: Database session dependency.
-
-    Returns:
-        Product: The updated product data.
     """
     image_url = None  # Default image URL is None
 
@@ -155,7 +140,7 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Collect only the fields that are not None and not empty
+    # Collect only the fields that are not None or empty (for partial updates)
     update_data = {}
 
     if name is not None and name.strip():
@@ -163,7 +148,7 @@ async def update_product(
     if producer is not None and producer.strip():
         update_data["producer"] = producer
     if description is not None:
-        update_data["description"] = description  # Description can be empty, so no strip() check here
+        update_data["description"] = description  # Empty description allowed
     if price is not None:
         update_data["price"] = price
     if stock is not None:
@@ -177,10 +162,11 @@ async def update_product(
     if image_url is not None:
         update_data["image_url"] = image_url
 
-    # Pass the update data to the update function
+    # Pass the update data to the update function in crud.py
     updated_product = await crud.update_product(product_id=product_id, product_data=update_data)
     if updated_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
+
     return updated_product
 
 # Delete a product by ID

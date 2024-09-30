@@ -24,11 +24,18 @@ class ProductCreate(ProductBase):
     pass  # Inherits fields from ProductBase
 
 # Schema for updating a product
-class ProductUpdate(ProductBase):
+class ProductUpdate(BaseModel):
     """
     Schema for updating a product.
     """
-    pass  # Inherits fields from ProductBase
+    name: Optional[str] = None
+    producer: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    stock: Optional[int] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    image_url: Optional[str] = None  # Image URL (optional)
 
 # Schema for a product response that includes an ID and image_url
 class Product(ProductBase):
