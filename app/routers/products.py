@@ -116,29 +116,29 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
 # Update an existing product by its ID and optionally upload a new image
 @router.patch("/{product_id}", response_model=schemas.Product)
 async def update_product(
-        product_id: int,
-        name: str = Form(None),  # Acceptable if not provided (None)
-        producer: str = Form(None),  # Acceptable if not provided (None)
-        description: str = Form(None),  # Optional description, can be None
-        price: float = Form(None),  # Optional price, can be None
-        stock: int = Form(None),  # Optional stock, can be None
-        category: str = Form(None),  # Optional category, can be None
-        subcategory: str = Form(None),  # Optional subcategory, can be None
-        image: UploadFile = File(None),  # Optional image file, defaults to None
-        db: Session = Depends(get_db)
+    product_id: int,
+    name: str = Form(None),
+    producer: str = Form(None),
+    description: str = Form(None),
+    price: float = Form(None),
+    stock: int = Form(None),
+    category: str = Form(None),
+    subcategory: str = Form(None),
+    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+    db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
-    Only provided fields will be updated. Fields left as None will not overwrite existing values.
+
     Args:
         product_id (int): The ID of the product to update.
-        name (str): Optional updated product name.
-        producer (str): Optional updated product producer.
-        description (str): Optional updated product description.
-        price (float): Optional updated price of the product.
-        stock (int): Optional updated stock of the product.
-        category (str): Optional updated product category.
-        subcategory (str): Optional updated product subcategory.
+        name (str): The updated product name.
+        producer (str): The updated product producer.
+        description (str): The updated product description (optional).
+        price (float): The updated price of the product.
+        stock (int): The updated stock of the product.
+        category (str): The updated product category.
+        subcategory (str): The updated product subcategory.
         image (UploadFile): Optional image file for product image.
         db: Database session dependency.
 
@@ -147,44 +147,40 @@ async def update_product(
     """
     image_url = None  # Default image URL is None
 
-    # If a new image is provided, upload it to Cloudinary and get the URL
+    # If a new image is provided, upload it to Cloudinary
     if image:
         try:
             upload_result = cloudinary.uploader.upload(image.file)
-            image_url = upload_result.get("secure_url")  # Save the secure URL from Cloudinary
+            image_url = upload_result.get("secure_url")
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Prepare product update data, only including fields that are not None or empty
-    update_data = {
-        "name": name if name else None,
-        "producer": producer if producer else None,
-        "description": description if description else None,
-        "price": price if price is not None else None,  # Handle price of 0 correctly
-        "stock": stock if stock is not None else None,  # Handle stock of 0 correctly
-        "category": category if category else None,
-        "subcategory": subcategory if subcategory else None,
-    }
+    # Collect only the fields that have been provided (non-empty values)
+    update_data = {}
+    if name is not None:
+        update_data["name"] = name
+    if producer is not None:
+        update_data["producer"] = producer
+    if description is not None:
+        update_data["description"] = description
+    if price is not None:
+        update_data["price"] = price
+    if stock is not None:
+        update_data["stock"] = stock
+    if category is not None:
+        update_data["category"] = category
+    if subcategory is not None:
+        update_data["subcategory"] = subcategory
 
-    # Remove fields that are None (meaning they are not part of the update)
-    update_data = {k: v for k, v in update_data.items() if v is not None}
-
-    # If an image URL is present, add it to the update data
-    if image_url:
+    # If there's an image URL, add it to the update data
+    if image_url is not None:
         update_data["image_url"] = image_url
 
-    # If no fields were provided for update, raise an error
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields provided for update.")
-
-    # Call the CRUD function to handle the database update
-    updated_product = await crud.update_product(product_id, update_data)
-
-    # If the product was not found, return a 404 error
+    # Pass the update data to the update function
+    updated_product = await crud.update_product(product_id=product_id, product_data=update_data)
     if updated_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
-
-    return updated_product  # Return the updated product data
+    return updated_product
 
 # Delete a product by ID
 @router.delete("/{product_id}")

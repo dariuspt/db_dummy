@@ -66,31 +66,32 @@ async def get_product(product_id: int):
 async def update_product(product_id: int, product_data: dict):
     """
     Update an existing product by its ID with the provided data.
-    Only fields provided in product_data will be updated.
 
     Args:
         product_id (int): The ID of the product to update.
-        product_data (dict): Dictionary of product fields to update.
+        product_data (dict): A dictionary of the fields to update.
 
     Returns:
-        dict: The updated product data, including the product ID.
+        dict: The updated product data if successful, None if not found.
     """
     try:
-        # If product_data is empty, return None early
+        # If the product_data is empty, return None (nothing to update)
         if not product_data:
             return None
 
-        # Prepare the SQLAlchemy update query with the product data
-        query = Product.__table__.update().where(Product.id == product_id).values(product_data)
-
-        # Execute the update query
+        # Prepare and execute the update query
+        query = (
+            Product.__table__.update()
+            .where(Product.id == product_id)
+            .values(**product_data)
+        )
         result = await database.execute(query)
 
         # Check if any rows were affected (i.e., if the product was found and updated)
         if result == 0:
-            return None
+            return None  # Product not found
 
-        # Return the updated product data along with the product ID
+        # Return the updated product data
         return {**product_data, "id": product_id}
 
     except SQLAlchemyError as e:
