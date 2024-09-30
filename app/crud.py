@@ -63,47 +63,39 @@ async def get_product(product_id: int):
 
 
 # Update an existing product by its ID with optional image_url
-async def update_product(product_id: int, product: ProductUpdate, image_url: str = None):
+async def update_product(product_id: int, product_data: dict):
     """
-    Update an existing product by its ID with optional image_url.
+    Update an existing product by its ID with the provided data.
+    Only fields provided in product_data will be updated.
 
     Args:
         product_id (int): The ID of the product to update.
-        product (ProductUpdate): The updated product data.
-        image_url (str): The new URL of the product image uploaded to Cloudinary.
+        product_data (dict): Dictionary of product fields to update.
 
     Returns:
-        dict: The updated product data if successful, None if not found.
+        dict: The updated product data, including the product ID.
     """
     try:
-        # Prepare product data for update, excluding unset fields
-        product_data = product.dict(exclude_unset=True)
-
-        # If an image_url is provided, update the image_url field
-        if image_url:
-            product_data["image_url"] = image_url
-
+        # If product_data is empty, return None early
         if not product_data:
-            raise ValueError("No fields provided for update.")
+            return None
 
-        # Prepare and execute the update query
+        # Prepare the SQLAlchemy update query with the product data
         query = Product.__table__.update().where(Product.id == product_id).values(product_data)
+
+        # Execute the update query
         result = await database.execute(query)
 
         # Check if any rows were affected (i.e., if the product was found and updated)
         if result == 0:
-            return None  # Product not found
+            return None
 
-        # Return the updated product data, including the product ID
+        # Return the updated product data along with the product ID
         return {**product_data, "id": product_id}
 
     except SQLAlchemyError as e:
         print(f"Error updating product {product_id}: {str(e)}")
         raise Exception("Database error occurred while updating the product.")
-
-    except Exception as e:
-        print(f"Unexpected error occurred while updating product {product_id}: {str(e)}")
-        raise Exception("An unexpected error occurred while updating the product.")
 
 # Delete a product by its ID
 async def delete_product(product_id: int):
