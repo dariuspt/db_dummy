@@ -116,16 +116,16 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
 # Update an existing product by its ID and optionally upload a new image
 @router.patch("/{product_id}", response_model=schemas.Product)
 async def update_product(
-    product_id: int,
-    name: str = Form(None),
-    producer: str = Form(None),
-    description: str = Form(None),
-    price: float = Form(None),
-    stock: int = Form(None),
-    category: str = Form(None),
-    subcategory: str = Form(None),
-    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
-    db: Session = Depends(get_db)
+        product_id: int,
+        name: str = Form(None),
+        producer: str = Form(None),
+        description: str = Form(None),
+        price: float = Form(None),
+        stock: int = Form(None),
+        category: str = Form(None),
+        subcategory: str = Form(None),
+        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+        db: Session = Depends(get_db)
 ):
     """
     Update an existing product by its ID, and optionally upload a new image.
@@ -155,21 +155,22 @@ async def update_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Collect only the fields that have been provided (non-empty values)
+    # Collect only the fields that are not None and not empty
     update_data = {}
-    if name is not None:
+
+    if name is not None and name.strip():
         update_data["name"] = name
-    if producer is not None:
+    if producer is not None and producer.strip():
         update_data["producer"] = producer
     if description is not None:
-        update_data["description"] = description
+        update_data["description"] = description  # Description can be empty, so no strip() check here
     if price is not None:
         update_data["price"] = price
     if stock is not None:
         update_data["stock"] = stock
-    if category is not None:
+    if category is not None and category.strip():
         update_data["category"] = category
-    if subcategory is not None:
+    if subcategory is not None and subcategory.strip():
         update_data["subcategory"] = subcategory
 
     # If there's an image URL, add it to the update data
