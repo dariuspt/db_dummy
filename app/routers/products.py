@@ -19,6 +19,7 @@ async def create_product(
     stock: int = Form(...),
     category: str = Form(...),  # Pass category name
     subcategory: str = Form(...),
+    is_top_product: bool = Form(None),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: AsyncSession = Depends(get_db)
 ):
@@ -63,6 +64,11 @@ async def read_products(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/top", response_model=List[schemas.Product])
+async def get_top_products(db: AsyncSession = Depends(get_db)):
+    products = await crud.get_top_products(db=db)
+    return products
+
 @router.get("/{product_id}", response_model=schemas.Product)
 async def read_product_with_category(product_id: int, db: AsyncSession = Depends(get_db)):
     product = await get_product_and_category(db=db, product_id=product_id)
@@ -96,7 +102,3 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
 async def get_product_and_category(db: AsyncSession, product_id: int):
     return await get_product_with_category(db, product_id)
 
-@router.get("/top", response_model=List[schemas.Product])
-async def get_top_products(db: AsyncSession = Depends(get_db)):
-    products = await crud.get_top_products(db=db)
-    return products
