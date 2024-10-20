@@ -1,70 +1,36 @@
-from fastapi import APIRouter, HTTPException
-from .. import crud, schemas
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
+from .. import schemas, crud
+from ..database import get_db
 
-# Create an APIRouter instance for order-related routes
 router = APIRouter()
 
-# Create a new order (from user side)
 @router.post("/", response_model=schemas.Order)
-async def create_order(order: schemas.OrderCreate):
-    """
-    Create a new order in the database.
+async def create_order(order: schemas.OrderCreate, db: AsyncSession = Depends(get_db)):
+    return await crud.create_order(db=db, order=order)
 
-    Args:
-        order (schemas.OrderCreate): The order data to create.
+@router.get("/", response_model=List[schemas.Order])
+async def read_orders(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)):
+    return await crud.get_orders(db=db, skip=skip, limit=limit)
 
-    Returns:
-        schemas.Order: The created order data, including its ID.
-    """
-    return await crud.create_order(order)
-
-# Get all orders (for admin to view all orders)
-@router.get("/", response_model=list[schemas.Order])  # Ensure response is a list of orders
-async def get_orders():
-    """
-    Retrieve all orders from the database.
-
-    Returns:
-        list[schemas.Order]: A list of all orders.
-    """
-    return await crud.get_all_orders()
-
-# Cancel an order by ID (for admin to cancel a user's order)
-@router.delete("/{order_id}", response_model=dict)
-async def cancel_order(order_id: int):
-    """
-    Cancel an order by its ID.
-
-    Args:
-        order_id (int): The ID of the order to cancel.
-
-    Returns:
-        dict: A success message indicating the order was canceled.
-
-    Raises:
-        HTTPException: If the order is not found.
-    """
-    success = await crud.cancel_order(order_id)
-    if not success:
+@router.get("/{order_id}", response_model=schemas.Order)
+async def read_order(order_id: int, db: AsyncSession = Depends(get_db)):
+    db_order = await crud.get_order_by_id(db=db, order_id=order_id)
+    if not db_order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return {"detail": "Order canceled"}
+    return db_order
 
-# Confirm an order (for admin to confirm order processing)
-@router.post("/{order_id}/confirm", response_model=dict)
-async def confirm_order(order_id: int):
-    """
-    Confirm an order by its ID (for admin processing).
+@router.patch("/{order_id}", response_model=schemas.Order)
+async def update_order(order_id: int, order: schemas.OrderCreate, db: AsyncSession = Depends(get_db)):
+    db_order = await crud.update_order(db=db, order_id=order_id, order=order)
+    if not db_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return db_order
 
-    Args:
-        order_id (int): The ID of the order to confirm.
-
-    Returns:
-        dict: A success message indicating the order was confirmed.
-
-    Raises:
-        HTTPException: If the order is not found or confirmation fails.
-    """
-    success = await crud.confirm_order(order_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Order not found or confirmation failed")
-    return {"detail": "Order confirmed and processed"}
+@router.delete("/{order_id}", response_model=schemas.Order)
+async def delete_order(order_id: int, db: AsyncSession = Depends(get_db)):
+    db_order = await crud.delete_order(db=db, order_id=order_id)
+    if not db_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return db_order
