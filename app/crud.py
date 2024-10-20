@@ -1,269 +1,210 @@
-import cloudinary.uploader
-from sqlalchemy import select, update, delete
-from .models import Product, Order, OrderItem  # Import the Product, Order, and OrderItem models
-from .schemas import ProductCreate, ProductUpdate, OrderCreate, OrderItemCreate, OrderItemUpdate  # Import schemas for data validation
-from .database import database  # Import the async database connection
-from sqlalchemy.exc import SQLAlchemyError
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
+from . import models, schemas
+from typing import Optional
 
+# ================================
+# CRUD for Products
+# ================================
 
-# --- Product Management ---
-
-# Create a new product with optional image_url
-async def create_product(product: ProductCreate, image_url: str = None):
-    """
-    Create a new product in the database with optional image_url.
-
-    Args:
-        product (ProductCreate): The product data to create.
-        image_url (str): The URL of the product image uploaded to Cloudinary.
-
-    Returns:
-        dict: The created product data with its ID.
-    """
-    query = Product.__table__.insert().values(
+# Create a new product
+async def create_product(db: AsyncSession, product: schemas.ProductCreate, image_url: Optional[str] = None):
+    # Create a new product instance
+    db_product = models.Product(
         name=product.name,
         producer=product.producer,
         description=product.description,
         price=product.price,
         stock=product.stock,
-        category=product.category,
+        category_id=product.category_id,  # Use the resolved category_id
         subcategory=product.subcategory,
-        image_url=image_url  # Save image URL from Cloudinary
+        image_url=image_url  # Use the image_url passed from the route
     )
-    last_record_id = await database.execute(query)  # Execute the insert query and get the last record ID
-    return {**product.dict(), "id": last_record_id, "image_url": image_url}  # Return the created product with ID
 
-# Retrieve all products
-async def get_all_products():
-    """
-    Retrieve all products from the database.
+    db.add(db_product)
+    await db.commit()
+    await db.refresh(db_product)  # Refresh the instance to return the newly created product
+    return db_product
 
-    Returns:
-        List[dict]: A list of products.
-    """
-    query = select(Product)  # Prepare query to select all products
-    products_list = await database.fetch_all(query)  # Fetch all products from the database
-    return [dict(product) for product in products_list]  # Convert each product to a dictionary
+# Get all products with optional pagination
+async def get_all_products(db: AsyncSession):
+    result = await db.execute(select(models.Product))
+    return result.scalars().all()
 
-# Retrieve a single product by its ID
-async def get_product(product_id: int):
-    """
-    Retrieve a single product by its ID.
+# Get a product by its ID
+async def get_product_by_id(db: AsyncSession, product_id: int):
+    result = await db.execute(select(models.Product).where(models.Product.id == product_id))
+    return result.scalars().first()
 
-    Args:
-        product_id (int): The ID of the product to retrieve.
+# Update a product
+async def update_product(db: AsyncSession, product: models.Product, updates: schemas.ProductUpdate):
+    update_data = updates.dict(exclude_unset=True)  # Only update fields that are provided
+    for key, value in update_data.items():
+        setattr(product, key, value)  # Dynamically update the product fields
 
-    Returns:
-        dict: The product data if found, None otherwise.
-    """
-    query = select(Product).where(Product.id == product_id)  # Query to get product by ID
-    product = await database.fetch_one(query)  # Fetch the single product from the database
-    return dict(product) if product else None  # Convert to dict if found, return None if not
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)  # Refresh to get the updated product from the database
+    return product
 
-
-# Update an existing product by its ID with optional image_url
-async def update_product(product_id: int, product_data: dict):
-    """
-    Update an existing product by its ID with the provided data.
-    """
-    try:
-        if not product_data:
-            return None  # No data to update
-
-        # Prepare and execute the update query
-        query = Product.__table__.update().where(Product.id == product_id).values(product_data)
-        result = await database.execute(query)
-
-        if result == 0:
-            return None  # Product not found
-
-        return {**product_data, "id": product_id}  # Return updated product data
-
-    except SQLAlchemyError as e:
-        print(f"Error updating product {product_id}: {str(e)}")
-        raise Exception("Database error occurred while updating the product.")
-
-# Delete a product by its ID
-async def delete_product(product_id: int):
-    """
-    Delete a product by its ID.
-
-    Args:
-        product_id (int): The ID of the product to delete.
-
-    Returns:
-        bool: True if the product was successfully deleted, False if not found.
-    """
-    query = Product.__table__.delete().where(Product.id == product_id)  # Prepare delete query
-    result = await database.execute(query)  # Execute the delete query
-    if result == 0:  # Check if any rows were affected (product not found)
-        return False  # Indicate that the product was not found
-    return True  # Product successfully deleted
+# Delete a product
+async def delete_product(db: AsyncSession, product_id: int):
+    db_product = await get_product_by_id(db, product_id)
+    if db_product:
+        await db.delete(db_product)
+        await db.commit()
+    return db_product
 
 
-# --- Order Management ---
+# Get a product with its associated category
+async def get_product_with_category(db: AsyncSession, product_id: int):
+    result = await db.execute(
+        select(models.Product).where(models.Product.id == product_id).options(joinedload(models.Product.category))
+    )
+    return result.scalars().first()
 
-# Get order item by order ID and product ID
-async def get_order_item_by_product(order_id: int, product_id: int):
-    """
-    Retrieve an order item by its order ID and product ID.
-
-    Args:
-        order_id (int): The ID of the order.
-        product_id (int): The ID of the product.
-
-    Returns:
-        dict: The order item if found, None otherwise.
-    """
-    query = select(OrderItem).where(OrderItem.order_id == order_id, OrderItem.product_id == product_id)  # Check for existing order item
-    return await database.fetch_one(query)  # Return the order item if it exists
+# ================================
+# CRUD for Orders
+# ================================
 
 # Create a new order
-async def create_order(order: OrderCreate):
-    """
-    Create a new order in the database.
+async def create_order(db: AsyncSession, order: schemas.OrderCreate):
+    db_order = models.Order(**order.dict())
+    db.add(db_order)
+    await db.commit()
+    await db.refresh(db_order)
+    return db_order
 
-    Args:
-        order (OrderCreate): The order data to create.
+# Get all orders with optional pagination
+async def get_orders(db: AsyncSession, skip: int = 0, limit: int = 10):
+    result = await db.execute(
+        select(models.Order).offset(skip).limit(limit).options(joinedload(models.Order.product))
+    )
+    return result.unique().scalars().all()
 
-    Returns:
-        dict: The created order with its ID.
-    """
-    query = Order.__table__.insert().values()  # Insert empty order (default values)
-    order_id = await database.execute(query)  # Create the order and get the order ID
-    for item in order.order_items:
-        await add_item_to_order(order_id, item)  # Add each item in the order
-    return {"id": order_id}
+# Get an order by its ID
+async def get_order_by_id(db: AsyncSession, order_id: int):
+    result = await db.execute(select(models.Order).where(models.Order.id == order_id))
+    return result.scalars().first()
 
-# Add an item to an order or increase its quantity
-async def add_item_to_order(order_id: int, item: OrderItemCreate):
-    """
-    Add a new item to an order or increase its quantity if it already exists.
+# Update an order
+async def update_order(db: AsyncSession, order: models.Order, updates: schemas.OrderUpdate):
+    update_data = updates.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(order, key, value)
 
-    Args:
-        order_id (int): The ID of the order.
-        item (OrderItemCreate): The order item to add.
+    db.add(order)
+    await db.commit()
+    await db.refresh(order)
+    return order
 
-    Returns:
-        dict: The created or updated order item.
-    """
-    try:
-        # Check if the item already exists in the order
-        query = select(OrderItem).where(OrderItem.order_id == order_id, OrderItem.product_id == item.product_id)
-        existing_item = await database.fetch_one(query)
+# Delete an order
+async def delete_order(db: AsyncSession, order_id: int):
+    db_order = await get_order_by_id(db, order_id)
+    if db_order:
+        await db.delete(db_order)
+        await db.commit()
+    return db_order
 
-        if existing_item:
-            # If it exists, increase the quantity
-            new_quantity = existing_item["quantity"] + item.quantity
-            await database.execute(
-                update(OrderItem)
-                .where(OrderItem.id == existing_item["id"])
-                .values(quantity=new_quantity)
-            )
-            return {"detail": f"Quantity updated to {new_quantity} for product {item.product_id}"}
+# ================================
+# CRUD for Top Categories
+# ================================
 
-        # If not, create a new order item
-        order_item_query = OrderItem.__table__.insert().values(
-            order_id=order_id,
-            product_id=item.product_id,
-            quantity=item.quantity,
-            product_name=item.product_name,
-            product_price=item.product_price,
-        )
-        await database.execute(order_item_query)  # Insert the new order item
-        return item
-    except Exception as e:
-        print(f"Error adding item to order: {str(e)}")
-        raise ValueError("Failed to add item to order.")
+# Create a new top category
+async def create_top_category(db: AsyncSession, category: schemas.TopCategoryCreate, image_url: Optional[str] = None):
+    # Create a new TopCategory instance
+    db_category = models.TopCategory(
+        name=category.name,
+        description=category.description,
+        image_url=image_url  # Use the image_url passed from the route
+    )
 
-# Update an order item quantity
-async def update_order_item_quantity(order_item_id: int, order_item_update: OrderItemUpdate):
-    """
-    Update the quantity of an item in the order.
+    db.add(db_category)
+    await db.commit()
+    await db.refresh(db_category)  # Refresh the instance to return the newly created category
+    return db_category
 
-    Args:
-        order_item_id (int): The ID of the order item to update.
-        order_item_update (OrderItemUpdate): The new quantity to update.
+# Get all top categories with optional pagination
+async def get_top_categories(db: AsyncSession, skip: int = 0, limit: int = 10):
+    result = await db.execute(
+        select(models.TopCategory).offset(skip).limit(limit).options(joinedload(models.TopCategory.products))
+    )
+    return result.unique().scalars().all()  # Add .unique() before .scalars().all()
 
-    Returns:
-        dict: The updated order item data.
-    """
-    try:
-        query = select(OrderItem).where(OrderItem.id == order_item_id)  # Get the specific order item
-        order_item = await database.fetch_one(query)
+# Get a top category by its ID
+async def get_top_category_by_id(db: AsyncSession, category_id: int):
+    result = await db.execute(select(models.TopCategory).where(models.TopCategory.id == category_id).options(joinedload(models.TopCategory.products)))
+    return result.scalars().first()
 
-        if not order_item:
-            raise ValueError("Order item not found.")  # Raise error if the item doesn't exist
+# Update a top category
+async def update_top_category(db: AsyncSession, category: models.TopCategory, updates: schemas.TopCategoryUpdate):
+    update_data = updates.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(category, key, value)
 
-        # Update the quantity of the order item
-        await database.execute(
-            update(OrderItem)
-            .where(OrderItem.id == order_item_id)
-            .values(quantity=order_item_update.quantity)
-        )
-        return {"detail": f"Quantity updated to {order_item_update.quantity}"}
-    except Exception as e:
-        print(f"Error updating order item quantity: {str(e)}")
-        raise ValueError("Failed to update order item quantity.")
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+    return category
 
-# Confirm an order and adjust the stock levels
-async def confirm_order(order_id: int):
-    """
-    Confirm the order, reducing stock levels in the products table.
+# Delete a top category
+async def delete_top_category(db: AsyncSession, category_id: int):
+    db_category = await get_top_category_by_id(db, category_id)
+    if db_category:
+        await db.delete(db_category)
+        await db.commit()
+    return db_category
 
-    Args:
-        order_id (int): The ID of the order to confirm.
 
-    Returns:
-        dict: Confirmation message indicating stock has been updated.
-    """
-    try:
-        # Get all the items in the order
-        order_items_query = select(OrderItem).where(OrderItem.order_id == order_id)
-        order_items = await database.fetch_all(order_items_query)
+# Get a category with its associated products
+async def get_top_category_with_products(db: AsyncSession, category_id: int):
+    result = await db.execute(
+        select(models.TopCategory).where(models.TopCategory.id == category_id).options(joinedload(models.TopCategory.products))
+    )
+    return result.scalars().first()
 
-        if not order_items:
-            raise ValueError("No items found in the order.")
+# ================================
+# CRUD for Top Products
+# ================================
 
-        # Adjust stock for each product in the order
-        for item in order_items:
-            product_query = select(Product).where(Product.id == item["product_id"])
-            product = await database.fetch_one(product_query)
+# Create a new top product
+async def create_top_product(db: AsyncSession, top_product: schemas.TopProductCreate):
+    db_top_product = models.TopProduct(**top_product.dict())
+    db.add(db_top_product)
+    await db.commit()
+    await db.refresh(db_top_product)
+    return db_top_product
 
-            if product and product["stock"] >= item["quantity"]:
-                new_stock = product["stock"] - item["quantity"]
-                await database.execute(
-                    update(Product).where(Product.id == item["product_id"]).values(stock=new_stock)
-                )
-            else:
-                raise ValueError(f"Insufficient stock for product {item['product_name']}.")
+# Get all top products with optional pagination
+async def get_top_products(db: AsyncSession, skip: int = 0, limit: int = 10):
+    result = await db.execute(
+        select(models.TopProduct).offset(skip).limit(limit).options(joinedload(models.TopProduct.product))
+    )
+    return result.unique().scalars().all()
 
-        return {"detail": "Order confirmed, stock updated"}
-    except Exception as e:
-        print(f"Error confirming order: {str(e)}")
-        raise ValueError("Failed to confirm order.")
+# Get a top product by its ID
+async def get_top_product_by_id(db: AsyncSession, top_product_id: int):
+    result = await db.execute(select(models.TopProduct).where(models.TopProduct.id == top_product_id))
+    return result.scalars().first()
 
-# Delete an order item
-async def delete_order_item(order_item_id: int):
-    """
-    Delete an order item by its ID.
+# Update a top product
+async def update_top_product(db: AsyncSession, top_product: models.TopProduct, updates: schemas.TopProductUpdate):
+    # Apply updates dynamically
+    update_data = updates.dict(exclude_unset=True)  # Only update fields that are provided
+    for key, value in update_data.items():
+        setattr(top_product, key, value)  # Update each field
 
-    Args:
-        order_item_id (int): The ID of the order item to delete.
+    db.add(top_product)
+    await db.commit()
+    await db.refresh(top_product)  # Refresh the instance to get the updated data
+    return top_product
 
-    Returns:
-        bool: True if the order item was successfully deleted.
-    """
-    try:
-        query = select(OrderItem).where(OrderItem.id == order_item_id)
-        order_item = await database.fetch_one(query)
-
-        if not order_item:
-            raise ValueError("Order item not found.")
-
-        await database.execute(delete(OrderItem).where(OrderItem.id == order_item_id))
-        return {"detail": "Order item deleted successfully"}
-    except Exception as e:
-        print(f"Error deleting order item: {str(e)}")
-        raise ValueError("Failed to delete order item.")
+# Delete a top product
+async def delete_top_product(db: AsyncSession, top_product_id: int):
+    db_top_product = await get_top_product_by_id(db, top_product_id)
+    if db_top_product:
+        await db.delete(db_top_product)
+        await db.commit()
+    return db_top_product
