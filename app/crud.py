@@ -20,6 +20,7 @@ async def create_product(db: AsyncSession, product: schemas.ProductCreate, image
         stock=product.stock,
         category_id=product.category_id,  # Use the resolved category_id
         subcategory=product.subcategory,
+        is_top_product=product.is_top_product,
         image_url=image_url  # Use the image_url passed from the route
     )
 
@@ -112,8 +113,8 @@ async def delete_order(db: AsyncSession, order_id: int):
 # CRUD for Top Categories
 # ================================
 
-# Create a new top category
-async def create_top_category(db: AsyncSession, category: schemas.TopCategoryCreate, image_url: Optional[str] = None):
+# Create a new category (no restrictions on top category)
+async def create_category(db: AsyncSession, category: schemas.TopCategoryCreate, image_url: Optional[str] = None):
     # Create a new TopCategory instance
     db_category = models.TopCategory(
         name=category.name,
@@ -126,20 +127,34 @@ async def create_top_category(db: AsyncSession, category: schemas.TopCategoryCre
     await db.refresh(db_category)  # Refresh the instance to return the newly created category
     return db_category
 
-# Get all top categories with optional pagination
-async def get_top_categories(db: AsyncSession, skip: int = 0, limit: int = 10):
+# Get all categories (no filtering for top categories)
+async def get_all_categories(db: AsyncSession):
     result = await db.execute(
-        select(models.TopCategory).offset(skip).limit(limit).options(joinedload(models.TopCategory.products))
+        select(models.TopCategory)
+        .options(joinedload(models.TopCategory.products))  # Eager load products
     )
-    return result.unique().scalars().all()  # Add .unique() before .scalars().all()
+    return result.unique().scalars().all()
 
-# Get a top category by its ID
-async def get_top_category_by_id(db: AsyncSession, category_id: int):
-    result = await db.execute(select(models.TopCategory).where(models.TopCategory.id == category_id).options(joinedload(models.TopCategory.products)))
+# Get only top categories (is_top_category=True)
+async def get_top_categories(db: AsyncSession):
+    result = await db.execute(
+        select(models.TopCategory)
+        .where(models.TopCategory.is_top_category == True)
+        .options(joinedload(models.TopCategory.products))  # Eager load products
+    )
+    return result.unique().scalars().all()
+
+# Get a category by its ID
+async def get_category_by_id(db: AsyncSession, category_id: int):
+    result = await db.execute(
+        select(models.TopCategory)
+        .where(models.TopCategory.id == category_id)
+        .options(joinedload(models.TopCategory.products))  # Eager load products
+    )
     return result.scalars().first()
 
-# Update a top category
-async def update_top_category(db: AsyncSession, category: models.TopCategory, updates: schemas.TopCategoryUpdate):
+# Update a category by ID
+async def update_category(db: AsyncSession, category: models.TopCategory, updates: schemas.TopCategoryUpdate):
     update_data = updates.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(category, key, value)
@@ -149,25 +164,23 @@ async def update_top_category(db: AsyncSession, category: models.TopCategory, up
     await db.refresh(category)
     return category
 
-# Delete a top category
-async def delete_top_category(db: AsyncSession, category_id: int):
-    db_category = await get_top_category_by_id(db, category_id)
+# Delete a category by ID
+async def delete_category(db: AsyncSession, category_id: int):
+    db_category = await get_category_by_id(db, category_id)
     if db_category:
         await db.delete(db_category)
         await db.commit()
     return db_category
 
-
-# Get a category with its associated products
-async def get_top_category_with_products(db: AsyncSession, category_id: int):
+# Get a category by ID with its associated products
+async def get_category_with_products(db: AsyncSession, category_id: int):
     result = await db.execute(
-        select(models.TopCategory).where(models.TopCategory.id == category_id).options(joinedload(models.TopCategory.products))
+        select(models.TopCategory)
+        .where(models.TopCategory.id == category_id)
+        .options(joinedload(models.TopCategory.products))  # Eager load products
     )
     return result.scalars().first()
 
-async def get_top_categories(db: AsyncSession):
-    result = await db.execute(select(models.TopCategory).where(models.TopCategory.is_top_category == True))
-    return result.scalars().all()
 
 # ================================
 # CRUD for Top Products

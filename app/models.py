@@ -13,7 +13,7 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey('topcategories.id'), nullable=True)
     subcategory = Column(String)
     image_url = Column(String, nullable=True)
-    is_top_product = Column(Boolean, default=False)  # New boolean field for top products
+    is_top_product = Column(Boolean)  # New boolean field for top products
 
     category = relationship("TopCategory", back_populates="products")
 

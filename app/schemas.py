@@ -11,6 +11,7 @@ class ProductCreate(BaseModel):
     category_id: Optional[int] = None  # Use category_id if referring to the ID
     subcategory: Optional[str] = None
     image_url: Optional[str] = None
+    is_top_product: Optional[bool] = None  # Add this field for top products
 
     class Config:
         orm_mode = True
@@ -60,6 +61,7 @@ class OrderUpdate(BaseModel):
 class TopCategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    is_top_category: Optional[bool] = None  # Add this field for top categories
 
 # Schema for returning a top category
 class TopCategory(TopCategoryCreate):
