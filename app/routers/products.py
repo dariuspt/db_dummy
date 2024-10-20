@@ -95,3 +95,8 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
 
 async def get_product_and_category(db: AsyncSession, product_id: int):
     return await get_product_with_category(db, product_id)
+
+@router.get("/top", response_model=List[schemas.Product])
+async def get_top_products(db: AsyncSession = Depends(get_db)):
+    products = await crud.get_top_products(db=db)
+    return products

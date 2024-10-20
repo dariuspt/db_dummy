@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -10,9 +10,10 @@ class Product(Base):
     description = Column(String, nullable=True)
     price = Column(Float)
     stock = Column(Integer)
-    category_id = Column(Integer, ForeignKey('topcategories.id', ondelete="SET NULL"))  # ForeignKey to TopCategory
+    category_id = Column(Integer, ForeignKey('topcategories.id'), nullable=True)
     subcategory = Column(String)
     image_url = Column(String, nullable=True)
+    is_top_product = Column(Boolean, default=False)  # New boolean field for top products
 
     category = relationship("TopCategory", back_populates="products")
 
@@ -29,8 +30,8 @@ class TopCategory(Base):
     name = Column(String, index=True)
     description = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
+    is_top_category = Column(Boolean, default=False)  # New boolean field for top categories
 
-    # Relationship to Products (one category to many products)
     products = relationship("Product", back_populates="category")
 
 class TopProduct(Base):

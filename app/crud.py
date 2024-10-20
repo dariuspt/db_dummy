@@ -40,13 +40,13 @@ async def get_product_by_id(db: AsyncSession, product_id: int):
 
 # Update a product
 async def update_product(db: AsyncSession, product: models.Product, updates: schemas.ProductUpdate):
-    update_data = updates.dict(exclude_unset=True)  # Only update fields that are provided
+    update_data = updates.dict(exclude_unset=True)
     for key, value in update_data.items():
-        setattr(product, key, value)  # Dynamically update the product fields
+        setattr(product, key, value)
 
     db.add(product)
     await db.commit()
-    await db.refresh(product)  # Refresh to get the updated product from the database
+    await db.refresh(product)
     return product
 
 # Delete a product
@@ -165,6 +165,10 @@ async def get_top_category_with_products(db: AsyncSession, category_id: int):
     )
     return result.scalars().first()
 
+async def get_top_categories(db: AsyncSession):
+    result = await db.execute(select(models.TopCategory).where(models.TopCategory.is_top_category == True))
+    return result.scalars().all()
+
 # ================================
 # CRUD for Top Products
 # ================================
@@ -208,3 +212,7 @@ async def delete_top_product(db: AsyncSession, top_product_id: int):
         await db.delete(db_top_product)
         await db.commit()
     return db_top_product
+
+async def get_top_products(db: AsyncSession):
+    result = await db.execute(select(models.Product).where(models.Product.is_top_product == True))
+    return result.scalars().all()

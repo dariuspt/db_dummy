@@ -57,3 +57,8 @@ async def delete_top_category(category_id: int, db: AsyncSession = Depends(get_d
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     return db_category
+
+@router.get("/top", response_model=List[schemas.TopCategory])
+async def get_top_categories(db: AsyncSession = Depends(get_db)):
+    categories = await crud.get_top_categories(db=db)
+    return categories
