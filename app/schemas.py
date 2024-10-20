@@ -29,6 +29,7 @@ class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
     subcategory: Optional[str] = None
     image_url: Optional[str] = None
+    is_top_product: Optional[bool] = None  # Add this field for top products
 
     class Config:
         orm_mode = True
@@ -72,6 +73,7 @@ class TopCategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
+    is_top_category: Optional[bool] = None  # Add this field for top categories
 
     class Config:
         orm_mode = True
