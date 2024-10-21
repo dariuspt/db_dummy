@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import products, orders, categories, topproducts
+from .routers import products, orders, categories, subcategories
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -14,4 +14,4 @@ app.add_middleware(
 app.include_router(products.router, prefix="/products", tags=["Products"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(categories.router, prefix="/categories", tags=["Categories"])
-app.include_router(topproducts.router, prefix="/topproducts", tags=["Top Products"])
+app.include_router(subcategories.router, prefix="/subcategories", tags=["Subcategories"])

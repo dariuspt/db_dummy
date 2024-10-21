@@ -34,8 +34,11 @@ async def create_product(
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
     # Lookup category_id based on category name
-    result = await db.execute(select(models.TopCategory).where(models.TopCategory.name == category))
+    result = await db.execute(select(models.Category).where(models.Category.name == category))
     category_instance = result.scalars().first()
+
+    result = await db.execute(select(models.SubCategory).where(models.SubCategory.name == subcategory))
+    subcategory_instance = result.scalars().first()
 
     if not category_instance:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -48,7 +51,8 @@ async def create_product(
         price=price,
         stock=stock,
         category_id=category_instance.id,  # Use the resolved category_id
-        subcategory=subcategory
+        is_top_product=is_top_product,
+        subcategory_id=subcategory_instance.id
     )
 
     # Pass the image URL to the product creation function
@@ -101,4 +105,15 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
 
 async def get_product_and_category(db: AsyncSession, product_id: int):
     return await get_product_with_category(db, product_id)
+
+
+# Get products by Category
+@router.get("/categories/{category_id}/products", response_model=List[schemas.Product])
+async def get_products_by_category(category_id: int, db: AsyncSession = Depends(get_db)):
+    return await crud.get_products_by_category(db=db, category_id=category_id)
+
+# Get products by SubCategory
+@router.get("/subcategories/{subcategory_id}/products", response_model=List[schemas.Product])
+async def get_products_by_subcategory(subcategory_id: int, db: AsyncSession = Depends(get_db)):
+    return await crud.get_products_by_subcategory(db=db, subcategory_id=subcategory_id)
 

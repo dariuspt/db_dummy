@@ -9,17 +9,18 @@ class ProductCreate(BaseModel):
     price: float
     stock: int
     category_id: Optional[int] = None  # Use category_id if referring to the ID
-    subcategory: Optional[str] = None
+    subcategory_id: Optional[int] = None  # Fixed to be an int
     image_url: Optional[str] = None
     is_top_product: Optional[bool] = None  # Add this field for top products
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Use the updated from_attributes for Pydantic v2
+
 class Product(ProductCreate):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated to from_attributes
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
@@ -28,12 +29,13 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = None
     stock: Optional[int] = None
     category_id: Optional[int] = None
-    subcategory: Optional[str] = None
+    subcategory_id: Optional[int] = None  # Fixed to be an int
     image_url: Optional[str] = None
-    is_top_product: Optional[bool] = None  # Add this field for top products
+    is_top_product: Optional[bool] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated to from_attributes
+
 
 # Order schemas
 class OrderBase(BaseModel):
@@ -47,7 +49,7 @@ class Order(OrderBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated to from_attributes
 
 class OrderUpdate(BaseModel):
     product_id: Optional[int] = None
@@ -55,49 +57,42 @@ class OrderUpdate(BaseModel):
     order_date: Optional[str] = None  # You can use a date type if needed
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# TopCategory schemas
-class TopCategoryCreate(BaseModel):
+
+# SubCategory schemas
+class SubCategoryCreate(BaseModel):
+    name: str
+    category_id: int  # Foreign key to Category
+
+class SubCategory(BaseModel):
+    id: int
+    name: str
+    category_id: int
+
+    class Config:
+        from_attributes = True  # Updated to from_attributes
+
+
+# Category schemas
+class CategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
     is_top_category: Optional[bool] = None  # Add this field for top categories
 
-# Schema for returning a top category
-class TopCategory(TopCategoryCreate):
+class Category(CategoryCreate):
     id: int
     image_url: Optional[str] = None
+    subcategories: List[SubCategory] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Updated to from_attributes
 
-class TopCategoryUpdate(BaseModel):
+class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    is_top_category: Optional[bool] = None
     image_url: Optional[str] = None
-    is_top_category: Optional[bool] = None  # Add this field for top categories
 
     class Config:
-        orm_mode = True
-
-# TopProduct schemas
-class TopProductBase(BaseModel):
-    product_id: int
-    rank: int
-
-class TopProductCreate(TopProductBase):
-    pass
-
-class TopProduct(TopProductBase):
-    id: int
-
-    class Config:
-        orm_mode = True
-
-class TopProductUpdate(BaseModel):
-    product_id: Optional[int] = None
-    rank: Optional[int] = None
-    highlighted: Optional[bool] = None
-
-    class Config:
-        orm_mode = True
+        from_attributes = True
