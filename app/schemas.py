@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
 
 # Product schemas
 class ProductCreate(BaseModel):
@@ -8,19 +8,28 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     price: float
     stock: int
-    category_id: Optional[int] = None  # Use category_id if referring to the ID
-    subcategory_id: Optional[int] = None  # Fixed to be an int
+    category_id: Optional[int] = None
+    subcategory_id: Optional[int] = None
     image_url: Optional[str] = None
-    is_top_product: Optional[bool] = None  # Add this field for top products
+    is_top_product: Optional[bool] = None
 
     class Config:
-        from_attributes = True  # Use the updated from_attributes for Pydantic v2
+        orm_mode = True
 
-class Product(ProductCreate):
+class Product(BaseModel):
     id: int
+    name: str
+    producer: Optional[str] = None
+    description: Optional[str] = None
+    price: float
+    stock: int
+    category_name: Optional[str] = None  # Use category name instead of ID
+    subcategory_name: Optional[str] = None  # Use subcategory name instead of ID
+    image_url: Optional[str] = None
+    is_top_product: Optional[bool] = None
 
     class Config:
-        from_attributes = True  # Updated to from_attributes
+        orm_mode = True
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
@@ -28,8 +37,8 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     stock: Optional[int] = None
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None  # Fixed to be an int
+    category_name: Optional[str] = None  # Use category name instead of ID
+    subcategory_name: Optional[str] = None  # Use subcategory name instead of ID
     image_url: Optional[str] = None
     is_top_product: Optional[bool] = None
 
@@ -62,19 +71,25 @@ class OrderUpdate(BaseModel):
 
 # SubCategory schemas
 class SubCategoryCreate(BaseModel):
-    name: str
-    category_id: int  # Foreign key to Category
+    name: Optional[str] = None
+    category_identifier: Optional[Union[int, str]] = None
+
+class SubCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    category_identifier: Optional[Union[int, str]] = None  # Can accept either category ID or name
+
+    class Config:
+        from_attributes = True
 
 class SubCategory(BaseModel):
     id: int
-    name: str
-    category_id: int
+    name: Optional[str] = None
+    category_name: Optional[str] = None  # Include the category name in the response
 
     class Config:
         from_attributes = True  # Updated to from_attributes
 
 
-# Category schemas
 class CategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
