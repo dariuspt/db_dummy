@@ -11,33 +11,156 @@ from typing import Optional
 
 # Create a new product
 async def create_product(db: AsyncSession, product: schemas.ProductCreate, image_url: Optional[str] = None):
-    # Create a new product instance
     db_product = models.Product(
         name=product.name,
         producer=product.producer,
         description=product.description,
         price=product.price,
         stock=product.stock,
-        category_id=product.category_id,  # Use the resolved category_id
+        category_id=product.category_id,
         subcategory_id=product.subcategory_id,
         is_top_product=product.is_top_product,
-        image_url=image_url  # Use the image_url passed from the route
+        image_url=image_url
     )
 
     db.add(db_product)
     await db.commit()
-    await db.refresh(db_product)  # Refresh the instance to return the newly created product
+    await db.refresh(db_product)
     return db_product
 
-# Get all products with optional pagination
+# Get all products with category and subcategory names
 async def get_all_products(db: AsyncSession):
-    result = await db.execute(select(models.Product))
-    return result.scalars().all()
+    result = await db.execute(
+        select(models.Product)
+        .options(
+            joinedload(models.Product.category),
+            joinedload(models.Product.subcategory)
+        )
+    )
+    products = result.scalars().all()
 
-# Get a product by its ID
+    products_with_names = [
+        {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        for product in products
+    ]
+
+    return products_with_names
+
+# Get a product by its ID with category and subcategory names
 async def get_product_by_id(db: AsyncSession, product_id: int):
-    result = await db.execute(select(models.Product).where(models.Product.id == product_id))
-    return result.scalars().first()
+    result = await db.execute(
+        select(models.Product)
+        .options(joinedload(models.Product.category), joinedload(models.Product.subcategory))
+        .where(models.Product.id == product_id)
+    )
+    product = result.scalars().first()
+
+    if product:
+        product_data = {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        return product_data
+    return None
+
+# Get a product by its name with category and subcategory names
+async def get_product_by_name(db: AsyncSession, product_name: str):
+    result = await db.execute(
+        select(models.Product)
+        .options(joinedload(models.Product.category), joinedload(models.Product.subcategory))
+        .where(models.Product.name == product_name)
+    )
+    product = result.scalars().first()
+
+    if product:
+        product_data = {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        return product_data
+    return None
+
+# Get a product with its associated category
+async def get_product_with_category(db: AsyncSession, product_id: int):
+    result = await db.execute(
+        select(models.Product)
+        .options(
+            joinedload(models.Product.category),
+            joinedload(models.Product.subcategory)
+        )
+        .where(models.Product.id == product_id)
+    )
+    product = result.scalars().first()
+
+    if product:
+        product_data = {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        return product_data
+    return None
+
+# Get all top products
+async def get_top_products(db: AsyncSession):
+    result = await db.execute(
+        select(models.Product)
+        .where(models.Product.is_top_product == True)
+        .options(joinedload(models.Product.category), joinedload(models.Product.subcategory))  # Eager load relationships
+    )
+    top_products = result.scalars().all()
+
+    top_products_with_names = [
+        {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        for product in top_products
+    ]
+
+    return top_products_with_names
 
 # Update a product
 async def update_product(db: AsyncSession, product: models.Product, updates: schemas.ProductUpdate):
@@ -51,20 +174,20 @@ async def update_product(db: AsyncSession, product: models.Product, updates: sch
     return product
 
 # Delete a product
-async def delete_product(db: AsyncSession, product_id: int):
-    db_product = await get_product_by_id(db, product_id)
+async def delete_product(db: AsyncSession, db_product: models.Product):
+    # Ensure the instance is an actual SQLAlchemy model
     if db_product:
         await db.delete(db_product)
         await db.commit()
-    return db_product
+        return db_product
+    return None
 
 
-# Get a product with its associated category
-async def get_product_with_category(db: AsyncSession, product_id: int):
-    result = await db.execute(
-        select(models.Product).where(models.Product.id == product_id).options(joinedload(models.Product.category))
-    )
+async def get_product_by_id_only_delete(db: AsyncSession, product_id: int):
+    # Helper function to fetch the product by ID
+    result = await db.execute(select(models.Product).where(models.Product.id == product_id))
     return result.scalars().first()
+
 
 # ================================
 # CRUD for Orders
@@ -113,64 +236,74 @@ async def delete_order(db: AsyncSession, order_id: int):
 # CRUD for Categories
 # ================================
 
-# Create a new category (no restrictions on top category)
+# Create a new category
 async def create_category(db: AsyncSession, category: schemas.CategoryCreate, image_url: Optional[str] = None):
-    # Create a new Category instance
     db_category = models.Category(
         name=category.name,
         description=category.description,
         is_top_category=category.is_top_category,
-        image_url=image_url  # Use the image_url passed from the route
+        image_url=image_url
     )
 
     db.add(db_category)
     await db.commit()
-    await db.refresh(db_category)  # Refresh the instance to return the newly created category
+    await db.refresh(db_category)
     return db_category
 
-# Get all categories (no filtering for top categories)
+# Get all categories
 async def get_all_categories(db: AsyncSession):
     result = await db.execute(
         select(models.Category)
-        .options(selectinload(models.Category.products), selectinload(models.Category.subcategories))  # Eagerly load both products and subcategories
+        .options(selectinload(models.Category.products), selectinload(models.Category.subcategories))
     )
     return result.scalars().all()
 
-# Get only top categories (is_top_category=True)
+
 async def get_top_categories(db: AsyncSession):
     result = await db.execute(
         select(models.Category)
         .where(models.Category.is_top_category == True)
-        .options(joinedload(models.Category.products))  # Eager load products
     )
-    return result.unique().scalars().all()
+    return result.scalars().all()  # Return a list of all top categories
 
 # Get a category by its ID
 async def get_category_by_id(db: AsyncSession, category_id: int):
     result = await db.execute(
         select(models.Category)
         .where(models.Category.id == category_id)
+        .options(joinedload(models.Category.products))
+    )
+    return result.scalars().first()
+
+
+async def get_category_by_name(db: AsyncSession, category_name: str):
+    result = await db.execute(
+        select(models.Category)
+        .where(models.Category.name == category_name)
         .options(joinedload(models.Category.products))  # Eager load products
     )
     return result.scalars().first()
 
 # Update a category by ID
 async def update_category(db: AsyncSession, category_id: int, updates: schemas.CategoryUpdate):
-    # Get the category from the database
+    # Fetch the existing category by its ID
     db_category = await db.get(models.Category, category_id)
-
     if db_category is None:
         return None
 
-    # Apply updates dynamically
-    update_data = updates.dict(exclude_unset=True)  # Only update fields that are provided
+    # Convert the update data into a dictionary, excluding unset (None) fields
+    update_data = updates.dict(exclude_unset=True)
     for key, value in update_data.items():
-        setattr(db_category, key, value)  # Update each field
+        setattr(db_category, key, value)  # Update each attribute
 
+    # Add and commit the updated category to the database
     db.add(db_category)
     await db.commit()
-    await db.refresh(db_category)  # Refresh the instance to get the updated data
+    await db.refresh(db_category)
+
     return db_category
+
+
 
 # Delete a category by ID
 async def delete_category(db: AsyncSession, category_id: int):
@@ -180,70 +313,214 @@ async def delete_category(db: AsyncSession, category_id: int):
         await db.commit()
     return db_category
 
-# Get a category by ID with its associated products
-async def get_category_with_products(db: AsyncSession, category_id: int):
-    result = await db.execute(
-        select(models.Category)
-        .where(models.Category.id == category_id)
-        .options(joinedload(models.Category.products))  # Eager load products
-    )
-    return result.scalars().first()
-
-
-# ================================
-# CRUD for Top Products
-# ================================
-
-# Get all top products with optional pagination
-
-async def get_top_products(db: AsyncSession):
-    result = await db.execute(select(models.Product).where(models.Product.is_top_product == True))
-    return result.scalars().all()
-
 # ================================
 # Fetch Products by Category or Subcategory
 # ================================
 async def get_products_by_category(db: AsyncSession, category_id: int):
-    result = await db.execute(select(models.Product).where(models.Product.category_id == category_id))
-    return result.scalars().all()
+    result = await db.execute(
+        select(models.Product)
+        .where(models.Product.category_id == category_id)
+        .options(joinedload(models.Product.category), joinedload(models.Product.subcategory))
+    )
+    products = result.scalars().all()
+
+    products_with_names = [
+        {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        for product in products
+    ]
+    return products_with_names
 
 async def get_products_by_subcategory(db: AsyncSession, subcategory_id: int):
-    result = await db.execute(select(models.Product).where(models.Product.subcategory_id == subcategory_id))
-    return result.scalars().all()
+    result = await db.execute(
+        select(models.Product)
+        .where(models.Product.subcategory_id == subcategory_id)
+        .options(joinedload(models.Product.category), joinedload(models.Product.subcategory))
+    )
+    products = result.scalars().all()
 
+    products_with_names = [
+        {
+            "id": product.id,
+            "name": product.name,
+            "producer": product.producer,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "category_name": product.category.name if product.category else None,
+            "subcategory_name": product.subcategory.name if product.subcategory else None,
+            "image_url": product.image_url,
+            "is_top_product": product.is_top_product,
+        }
+        for product in products
+    ]
+    return products_with_names
 
 # ================================
-# CRUD Operations for Subcategories
+# CRUD for Subcategories
 # ================================
 
+# Get all subcategories with associated category names
+async def get_all_subcategories(db: AsyncSession):
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))  # Load the associated category
+    )
+    subcategories = result.scalars().all()
+
+    # Return subcategories with category names instead of IDs
+    subcategories_with_names = [
+        {
+            "id": subcategory.id,
+            "name": subcategory.name,
+            "category_name": subcategory.category.name if subcategory.category else None
+        }
+        for subcategory in subcategories
+    ]
+    return subcategories_with_names
+
+# Create a subcategory (still using category_id for creation)
 async def create_subcategory(db: AsyncSession, subcategory: schemas.SubCategoryCreate):
-    db_subcategory = models.SubCategory(name=subcategory.name, category_id=subcategory.category_id)
+    # Use the category_id directly since it's already resolved
+    db_subcategory = models.SubCategory(name=subcategory.name, category_id=subcategory.category_identifier)
     db.add(db_subcategory)
     await db.commit()
     await db.refresh(db_subcategory)
-    return db_subcategory
 
+    # Return the created subcategory with the associated category name
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))
+        .where(models.SubCategory.id == db_subcategory.id)
+    )
+    created_subcategory = result.scalars().first()
+
+    if created_subcategory:
+        return {
+            "id": created_subcategory.id,
+            "name": created_subcategory.name,
+            "category_name": created_subcategory.category.name if created_subcategory.category else None
+        }
+    return None
+
+# Get all subcategories for a specific category (by category_id)
 async def get_subcategories(db: AsyncSession, category_id: int):
-    result = await db.execute(select(models.SubCategory).where(models.SubCategory.category_id == category_id))
-    return result.scalars().all()
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))
+        .where(models.SubCategory.category_id == category_id)
+    )
+    subcategories = result.scalars().all()
 
+    subcategories_with_names = [
+        {
+            "id": subcategory.id,
+            "name": subcategory.name,
+            "category_name": subcategory.category.name if subcategory.category else None
+        }
+        for subcategory in subcategories
+    ]
+    return subcategories_with_names
+
+# Get a subcategory by its ID (including category name)
 async def get_subcategory_by_id(db: AsyncSession, subcategory_id: int):
-    result = await db.execute(select(models.SubCategory).where(models.SubCategory.id == subcategory_id))
-    return result.scalars().first()
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))  # Eager load the category relationship
+        .where(models.SubCategory.id == subcategory_id)
+    )
+    subcategory = result.scalars().first()
 
-async def update_subcategory(db: AsyncSession, subcategory: models.SubCategory, updates: schemas.SubCategoryCreate):
-    update_data = updates.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(subcategory, key, value)
+    if subcategory:
+        return {
+            "id": subcategory.id,
+            "name": subcategory.name,
+            "category_name": subcategory.category.name if subcategory.category else None
+        }
+    return None
 
+# Get a subcategory by its name (including category name)
+async def get_subcategory_by_name(db: AsyncSession, subcategory_name: str):
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))  # Eager load the category relationship
+        .where(models.SubCategory.name == subcategory_name)
+    )
+    subcategory = result.scalars().first()
+
+    if subcategory:
+        return {
+            "id": subcategory.id,
+            "name": subcategory.name,
+            "category_name": subcategory.category.name if subcategory.category else None
+        }
+    return None
+
+# Update a subcategory by its current object (with category name in the response)
+async def update_subcategory(db: AsyncSession, subcategory: models.SubCategory, updates: schemas.SubCategoryUpdate):
+    # Make sure updates is a Pydantic model (which it should be if passed correctly from the router)
+
+    # Only update the fields that are provided
+    if updates.name is not None:
+        subcategory.name = updates.name  # Update the subcategory name if provided
+
+    # If the category identifier is provided, resolve the category by either name or ID
+    if updates.category_identifier is not None:
+        if isinstance(updates.category_identifier, int):
+            result = await db.execute(select(models.Category).where(models.Category.id == updates.category_identifier))
+        else:
+            result = await db.execute(
+                select(models.Category).where(models.Category.name == updates.category_identifier))
+
+        category_instance = result.scalars().first()
+        if not category_instance:
+            raise HTTPException(status_code=404, detail="Category not found")
+        subcategory.category_id = category_instance.id  # Update the category ID
+
+    # Add and commit the updated subcategory
     db.add(subcategory)
     await db.commit()
     await db.refresh(subcategory)
-    return subcategory
 
+    # Fetch and return the updated subcategory with the category name included
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))
+        .where(models.SubCategory.id == subcategory.id)
+    )
+    updated_subcategory = result.scalars().first()
+
+    if updated_subcategory:
+        return {
+            "id": updated_subcategory.id,
+            "name": updated_subcategory.name,
+            "category_name": updated_subcategory.category.name if updated_subcategory.category else None
+        }
+    return None
+
+
+# Delete a subcategory by its ID
 async def delete_subcategory(db: AsyncSession, subcategory_id: int):
-    db_subcategory = await get_subcategory_by_id(db, subcategory_id=subcategory_id)
+    # Retrieve the actual subcategory model instance to delete
+    result = await db.execute(
+        select(models.SubCategory)
+        .where(models.SubCategory.id == subcategory_id)
+    )
+    db_subcategory = result.scalars().first()
+
     if db_subcategory:
-        await db.delete(db_subcategory)
+        await db.delete(db_subcategory)  # Use the actual SQLAlchemy model instance
         await db.commit()
-    return db_subcategory
+        return db_subcategory  # Return the deleted model instance if needed
+    return None
+

@@ -49,9 +49,15 @@ async def get_top_categories(db: AsyncSession = Depends(get_db)):
     return categories
 
 # Get a category by ID with its associated products
-@router.get("/{category_id}", response_model=schemas.Category)
-async def read_category_with_products(category_id: int, db: AsyncSession = Depends(get_db)):
-    category = await crud.get_category_with_products(db=db, category_id=category_id)
+@router.get("/{identifier}", response_model=schemas.Category)
+async def get_category(identifier: str, db: AsyncSession = Depends(get_db)):
+    if identifier.isdigit():
+        # Search by ID if the identifier is a digit
+        category = await crud.get_category_by_id(db=db, category_id=int(identifier))
+    else:
+        # Search by name if it's not a digit
+        category = await crud.get_category_by_name(db=db, category_name=identifier)
+
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
     return category
