@@ -163,14 +163,19 @@ async def get_top_products(db: AsyncSession):
     return top_products_with_names
 
 # Update a product
-async def update_product(db: AsyncSession, product: models.Product, updates: schemas.ProductUpdate):
-    update_data = updates.dict(exclude_unset=True)
-    for key, value in update_data.items():
+async def update_product(db: AsyncSession, product: models.Product, updates: dict):
+    """
+    Updates an existing product with the provided fields.
+    """
+    # Update only the fields that are provided
+    for key, value in updates.items():
         setattr(product, key, value)
 
+    # Add the updated product object back to the session and commit the changes
     db.add(product)
     await db.commit()
     await db.refresh(product)
+
     return product
 
 # Delete a product
@@ -285,23 +290,30 @@ async def get_category_by_name(db: AsyncSession, category_name: str):
     return result.scalars().first()
 
 # Update a category by ID
-async def update_category(db: AsyncSession, category_id: int, updates: schemas.CategoryUpdate):
-    # Fetch the existing category by its ID
-    db_category = await db.get(models.Category, category_id)
-    if db_category is None:
-        return None
+async def update_category(db: AsyncSession, category: models.Category, updates: dict):
+    # Update only the fields that are provided
+    for key, value in updates.items():
+        setattr(category, key, value)
 
-    # Convert the update data into a dictionary, excluding unset (None) fields
-    update_data = updates.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_category, key, value)  # Update each attribute
-
-    # Add and commit the updated category to the database
-    db.add(db_category)
+    db.add(category)
     await db.commit()
-    await db.refresh(db_category)
+    await db.refresh(category)
 
-    return db_category
+    # Return the updated category with subcategories
+    return {
+        "id": category.id,
+        "name": category.name,
+        "description": category.description,
+        "is_top_category": category.is_top_category,
+        "image_url": category.image_url,
+        "subcategories": [
+            {
+                "id": sub.id,
+                "name": sub.name,
+                "category_name": category.name,
+            } for sub in category.subcategories
+        ]
+    }
 
 
 
@@ -449,6 +461,15 @@ async def get_subcategory_by_id(db: AsyncSession, subcategory_id: int):
         }
     return None
 
+
+async def get_subcategory_by_id_for_update(db: AsyncSession, subcategory_id: int):
+    result = await db.execute(
+        select(models.SubCategory)
+        .options(joinedload(models.SubCategory.category))  # Load the category relationship
+        .where(models.SubCategory.id == subcategory_id)
+    )
+    return result.scalars().first()
+
 # Get a subcategory by its name (including category name)
 async def get_subcategory_by_name(db: AsyncSession, subcategory_name: str):
     result = await db.execute(
@@ -467,46 +488,22 @@ async def get_subcategory_by_name(db: AsyncSession, subcategory_name: str):
     return None
 
 # Update a subcategory by its current object (with category name in the response)
-async def update_subcategory(db: AsyncSession, subcategory: models.SubCategory, updates: schemas.SubCategoryUpdate):
-    # Make sure updates is a Pydantic model (which it should be if passed correctly from the router)
+async def update_subcategory(db: AsyncSession, subcategory: models.SubCategory, updates: dict):
+    # Update only the fields that are provided
+    for key, value in updates.items():
+        setattr(subcategory, key, value)
 
-    # Only update the fields that are provided
-    if updates.name is not None:
-        subcategory.name = updates.name  # Update the subcategory name if provided
-
-    # If the category identifier is provided, resolve the category by either name or ID
-    if updates.category_identifier is not None:
-        if isinstance(updates.category_identifier, int):
-            result = await db.execute(select(models.Category).where(models.Category.id == updates.category_identifier))
-        else:
-            result = await db.execute(
-                select(models.Category).where(models.Category.name == updates.category_identifier))
-
-        category_instance = result.scalars().first()
-        if not category_instance:
-            raise HTTPException(status_code=404, detail="Category not found")
-        subcategory.category_id = category_instance.id  # Update the category ID
-
-    # Add and commit the updated subcategory
     db.add(subcategory)
     await db.commit()
     await db.refresh(subcategory)
 
-    # Fetch and return the updated subcategory with the category name included
-    result = await db.execute(
-        select(models.SubCategory)
-        .options(joinedload(models.SubCategory.category))
-        .where(models.SubCategory.id == subcategory.id)
-    )
-    updated_subcategory = result.scalars().first()
+    # Return the updated subcategory with the associated category name
+    return {
+        "id": subcategory.id,
+        "name": subcategory.name,
+        "category_name": subcategory.category.name if subcategory.category else None
+    }
 
-    if updated_subcategory:
-        return {
-            "id": updated_subcategory.id,
-            "name": updated_subcategory.name,
-            "category_name": updated_subcategory.category.name if updated_subcategory.category else None
-        }
-    return None
 
 
 # Delete a subcategory by its ID

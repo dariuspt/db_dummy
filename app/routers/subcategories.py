@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Union
+from typing import List, Union, Optional
 from .. import schemas, crud, models
 from ..database import get_db
 
@@ -67,24 +67,33 @@ async def get_subcategory(identifier: str, db: AsyncSession = Depends(get_db)):
 # Update an existing SubCategory
 @router.patch("/{subcategory_id}", response_model=schemas.SubCategory)
 async def update_subcategory(
-        subcategory_id: int,
-        subcategory_update: schemas.SubCategoryUpdate,  # This expects JSON payload, hence using it as a pydantic schema
-        db: AsyncSession = Depends(get_db)
+    subcategory_id: int,
+    name: Optional[str] = Form(None),  # Accept subcategory name
+    category: Optional[str] = Form(None),  # Optional category name
+    db: AsyncSession = Depends(get_db)
 ):
-    # Fetch the existing subcategory by ID
-    subcategory = await crud.get_subcategory_by_id(db=db, subcategory_id=subcategory_id)
-    if not subcategory:
+    # Fetch the existing subcategory by ID (this should return a model instance)
+    db_subcategory = await crud.get_subcategory_by_id_for_update(db=db, subcategory_id=subcategory_id)
+
+    if not db_subcategory:
         raise HTTPException(status_code=404, detail="Subcategory not found")
 
-    # Pass to CRUD function to handle the update
-    updated_subcategory = await crud.update_subcategory(
-        db=db,
-        subcategory=subcategory,
-        updates=subcategory_update
-    )
+    # Prepare the data to update
+    update_data = {}
 
-    if not updated_subcategory:
-        raise HTTPException(status_code=500, detail="Failed to update subcategory")
+    if name is not None:
+        update_data["name"] = name
+
+    # If category name is provided, resolve the category ID
+    if category is not None:
+        result = await db.execute(select(models.Category).where(models.Category.name == category))
+        category_instance = result.scalars().first()
+        if not category_instance:
+            raise HTTPException(status_code=404, detail="Category not found")
+        update_data["category_id"] = category_instance.id
+
+    # Call the CRUD function to update the subcategory
+    updated_subcategory = await crud.update_subcategory(db=db, subcategory=db_subcategory, updates=update_data)
 
     return updated_subcategory
 

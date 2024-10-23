@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from .. import schemas, crud
 from ..database import get_db
 import cloudinary.uploader
@@ -87,6 +87,74 @@ async def read_product_by_id_or_name(identifier: str, db: AsyncSession = Depends
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
+
+@router.patch("/{product_id}", response_model=schemas.Product)
+async def update_product(
+        product_id: int,
+        name: Optional[str] = Form(None),
+        producer: Optional[str] = Form(None),
+        description: Optional[str] = Form(None),
+        price: Optional[float] = Form(None),
+        stock: Optional[int] = Form(None),
+        category: Optional[str] = Form(None),  # Optional category name
+        subcategory: Optional[str] = Form(None),
+        is_top_product: Optional[bool] = Form(None),
+        image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+        db: AsyncSession = Depends(get_db)
+):
+    # Fetch the existing product by ID
+    db_product = await crud.get_product_by_id_only_delete(db=db, product_id=product_id)
+
+    if not db_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Upload the new image if provided
+    image_url = db_product.image_url  # Keep existing image URL if not replaced
+    if image:
+        try:
+            upload_result = cloudinary.uploader.upload(image.file)
+            image_url = upload_result.get("secure_url")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
+
+    # Update the fields if provided in the request
+    update_data = {}
+
+    if name is not None:
+        update_data["name"] = name
+    if producer is not None:
+        update_data["producer"] = producer
+    if description is not None:
+        update_data["description"] = description
+    if price is not None:
+        update_data["price"] = price
+    if stock is not None:
+        update_data["stock"] = stock
+    if is_top_product is not None:
+        update_data["is_top_product"] = is_top_product
+
+    # If category or subcategory is provided, resolve their IDs
+    if category is not None:
+        result = await db.execute(select(models.Category).where(models.Category.name == category))
+        category_instance = result.scalars().first()
+        if not category_instance:
+            raise HTTPException(status_code=404, detail="Category not found")
+        update_data["category_id"] = category_instance.id
+
+    if subcategory is not None:
+        result = await db.execute(select(models.SubCategory).where(models.SubCategory.name == subcategory))
+        subcategory_instance = result.scalars().first()
+        if not subcategory_instance:
+            raise HTTPException(status_code=404, detail="Subcategory not found")
+        update_data["subcategory_id"] = subcategory_instance.id
+
+    # Add the new image URL to the update data
+    update_data["image_url"] = image_url
+
+    # Call the CRUD function to update the product
+    updated_product = await crud.update_product(db=db, product=db_product, updates=update_data)
+
+    return updated_product
 
 @router.delete("/{product_id}", response_model=schemas.Product)
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
