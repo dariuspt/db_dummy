@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 from .. import schemas, crud
 from ..database import get_db
 import cloudinary.uploader
@@ -62,13 +62,50 @@ async def get_category(identifier: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Category not found")
     return category
 
-# Update a category by ID (can update both top and non-top categories)
+
 @router.patch("/{category_id}", response_model=schemas.Category)
-async def update_category(category_id: int, category: schemas.CategoryUpdate, db: AsyncSession = Depends(get_db)):
-    db_category = await crud.update_category(db=db, category_id=category_id, updates=category)
+async def update_category(
+    category_id: int,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    is_top_category: Optional[bool] = Form(None),
+    image: UploadFile = File(None),  # Optional image file for Cloudinary upload
+    db: AsyncSession = Depends(get_db)
+):
+    # Fetch the existing category by ID
+    db_category = await crud.get_category_by_id(db=db, category_id=category_id)
+
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
-    return db_category
+
+    # Upload the new image if provided
+    image_url = db_category.image_url  # Keep the existing image URL if not replaced
+    if image:
+        try:
+            upload_result = cloudinary.uploader.upload(image.file)
+            image_url = upload_result.get("secure_url")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
+
+    # Prepare the data to update
+    update_data = {}
+
+    if name is not None:
+        update_data["name"] = name
+    if description is not None:
+        update_data["description"] = description
+    if is_top_category is not None:
+        update_data["is_top_category"] = is_top_category
+
+    # Add the new image URL to the update data
+    update_data["image_url"] = image_url
+
+    # Call the CRUD function to update the category
+    updated_category = await crud.update_category(db=db, category=db_category, updates=update_data)
+
+    return updated_category
+
+
 
 # Delete a category by ID (both top and non-top)
 @router.delete("/{category_id}", response_model=schemas.Category)
