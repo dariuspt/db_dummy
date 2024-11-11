@@ -26,8 +26,8 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    processed = Column(Boolean, default=False)  # New boolean field
 
-    # Add lazy='selectin' or lazy='joined' to pre-fetch the order_products relationship
     order_products = relationship('OrderProduct', back_populates='order', lazy='selectin')
 
 
