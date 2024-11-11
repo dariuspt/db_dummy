@@ -201,78 +201,113 @@ async def get_product_by_id_only_delete(db: AsyncSession, product_id: int):
 # CRUD for Orders
 # ================================
 
+# Function to get all orders and the products in each order
+async def get_all_orders(db: AsyncSession):
+    result = await db.execute(
+        select(models.Order)
+        .options(
+            selectinload(models.Order.order_products).selectinload(models.OrderProduct.product)
+        )
+    )
+    orders = result.scalars().all()
+
+    if not orders:
+        raise HTTPException(status_code=404, detail="No orders found")
+
+    # Construct the response with detailed product info for each order
+    orders_with_details = [
+        {
+            "id": order.id,
+            "created_at": order.created_at,
+            "updated_at": order.updated_at,
+            "products": [
+                {
+                    "product_id": op.product_id,
+                    "name": op.product.name,
+                    "price": op.product.price,
+                    "quantity": op.quantity
+                }
+                for op in order.order_products
+            ]
+        }
+        for order in orders
+    ]
+
+    return orders_with_details
+
 # Create a new order and update product stock
 async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
     # Create the order record
     order = models.Order()
     db.add(order)
-    await db.commit()
+    await db.commit()  # Commit to assign an ID to `order`
     await db.refresh(order)
 
     if not order_data.products:
         raise HTTPException(status_code=400, detail="Order must include at least one product")
 
-    # Insert products into the order_products table and update product stock
-    for item in order_data.products:
-        if not item.product_id:
-            raise HTTPException(status_code=400, detail="Product ID is required for each product")
+    # Helper function to handle product and stock validation
+    async def process_product(item):
+        # Replace db.get with a properly constructed select statement
+        result = await db.execute(select(models.Product).where(models.Product.id == item.product_id))
+        product = result.scalars().first()
 
-        # Fetch the product asynchronously
-        product = await db.get(models.Product, item.product_id)
-
-        if product and product.stock >= item.quantity:
-            product.stock -= item.quantity
-            db.add(product)
-        else:
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product ID {item.product_id} not found")
+        if product.stock < item.quantity:
             raise HTTPException(status_code=400, detail=f"Not enough stock for product ID {item.product_id}")
 
-        # Add the order-product relation
-        db.add(models.OrderProduct(order_id=order.id, product_id=item.product_id, quantity=item.quantity))
+        product.stock -= item.quantity
+        db.add(product)
+        return models.OrderProduct(order_id=order.id, product_id=item.product_id, quantity=item.quantity)
+
+    # Process products asynchronously
+    order_products = [await process_product(item) for item in order_data.products]
+
+    for order_product in order_products:
+        db.add(order_product)
 
     await db.commit()
+    await db.refresh(order)
 
-    # Return the created order, ensuring all related fields are loaded asynchronously
-    result = await db.execute(
-        select(models.Order).where(models.Order.id == order.id).options(
-            selectinload(models.Order.order_products).joinedload(models.OrderProduct.product)
-        )
-    )
-    created_order = result.scalars().first()
-
-    if not created_order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    return created_order
-
-# Get order by ID
-async def get_order_by_id(db: AsyncSession, order_id: int):
-    result = await db.execute(
-        select(models.Order).where(models.Order.id == order_id).options(
-            joinedload(models.Order.order_products).joinedload(models.OrderProduct.product)
-        )
-    )
-    order = result.scalars().first()
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    # Construct response data
+    # Construct the response that matches the Order schema
     products_data = [
-        {
-            "product_id": op.product.id,
-            "name": op.product.name,
-            "price": op.product.price,
-            "quantity": op.quantity,
-            "category_name": op.product.category.name if op.product.category else None,
-        }
-        for op in order.order_products
+        {"product_id": op.product_id, "quantity": op.quantity}
+        for op in order_products
     ]
 
     return {
         "id": order.id,
+        "products": products_data
+    }
+
+# Get order by ID
+async def get_order_by_id(db: AsyncSession, order_id: int):
+    result = await db.execute(
+        select(models.Order)
+        .where(models.Order.id == order_id)
+        .options(
+            selectinload(models.Order.order_products).joinedload(OrderProduct.product)
+        )
+    )
+    order = result.scalars().first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Construct the response with detailed product info
+    return {
+        "id": order.id,
         "created_at": order.created_at,
         "updated_at": order.updated_at,
-        "products": products_data
+        "products": [
+            {
+                "product_id": op.product_id,
+                "name": op.product.name,
+                "price": op.product.price,
+                "quantity": op.quantity
+            }
+            for op in order.order_products
+        ]
     }
 
 
