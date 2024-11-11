@@ -18,8 +18,8 @@ async def create_product(
     description: str = Form(None),
     price: float = Form(...),
     stock: int = Form(...),
-    category: str = Form(...),  # Pass category name
-    subcategory: str = Form(...),
+    category: str = Form(None),  # Pass category name
+    subcategory: str = Form(None),
     is_top_product: bool = Form(None),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: AsyncSession = Depends(get_db)

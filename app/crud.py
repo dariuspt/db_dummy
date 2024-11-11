@@ -206,7 +206,7 @@ async def get_all_orders(db: AsyncSession):
     result = await db.execute(
         select(models.Order)
         .options(
-            selectinload(models.Order.order_products).selectinload(models.OrderProduct.product)
+            selectinload(models.Order.order_products).selectinload(OrderProduct.product)
         )
     )
     orders = result.scalars().all()
@@ -214,26 +214,33 @@ async def get_all_orders(db: AsyncSession):
     if not orders:
         raise HTTPException(status_code=404, detail="No orders found")
 
-    # Construct the response with detailed product info for each order
-    orders_with_details = [
+    # Construct the response for all orders
+    return [
         {
             "id": order.id,
-            "created_at": order.created_at,
-            "updated_at": order.updated_at,
+            "created_at": order.created_at.isoformat() if order.created_at else None,  # Convert to string
+            "updated_at": order.updated_at.isoformat() if order.updated_at else None,  # Convert to string
             "products": [
                 {
-                    "product_id": op.product_id,
-                    "name": op.product.name,
-                    "price": op.product.price,
+                    "product": {
+                        "id": op.product.id,
+                        "name": op.product.name,
+                        "producer": op.product.producer,
+                        "description": op.product.description,
+                        "price": op.product.price,
+                        "stock": op.product.stock,
+                        "category_id": op.product.category_id,
+                        "subcategory_id": op.product.subcategory_id,
+                        "image_url": op.product.image_url,
+                        "is_top_product": op.product.is_top_product
+                    },
                     "quantity": op.quantity
                 }
-                for op in order.order_products
+                for op in order.order_products if op.product  # Ensure product exists
             ]
         }
         for order in orders
     ]
-
-    return orders_with_details
 
 # Create a new order and update product stock
 async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
@@ -297,16 +304,25 @@ async def get_order_by_id(db: AsyncSession, order_id: int):
     # Construct the response with detailed product info
     return {
         "id": order.id,
-        "created_at": order.created_at,
-        "updated_at": order.updated_at,
+        "created_at": order.created_at.isoformat() if order.created_at else None,  # Convert to string
+        "updated_at": order.updated_at.isoformat() if order.updated_at else None,  # Convert to string
         "products": [
             {
-                "product_id": op.product_id,
-                "name": op.product.name,
-                "price": op.product.price,
+                "product": {
+                    "id": op.product.id,
+                    "name": op.product.name,
+                    "producer": op.product.producer,
+                    "description": op.product.description,
+                    "price": op.product.price,
+                    "stock": op.product.stock,
+                    "category_id": op.product.category_id,
+                    "subcategory_id": op.product.subcategory_id,
+                    "image_url": op.product.image_url,
+                    "is_top_product": op.product.is_top_product
+                },
                 "quantity": op.quantity
             }
-            for op in order.order_products
+            for op in order.order_products if op.product  # Ensure product exists
         ]
     }
 

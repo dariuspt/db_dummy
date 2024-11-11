@@ -46,10 +46,13 @@ class ProductUpdate(BaseModel):
         from_attributes = True  # Updated to from_attributes
 
 
-# Order detail schema to represent each product in an order
+# Order detail schema to represent each product in an order, with full product details
 class ProductInOrder(BaseModel):
-    product_id: int
+    product: Product  # Include the full product details
     quantity: int
+
+    class Config:
+        orm_mode = True
 
 class OrderCreate(BaseModel):
     products: List[ProductInOrder]
@@ -59,10 +62,13 @@ class OrderCreate(BaseModel):
 
 class Order(BaseModel):
     id: int
-    products: List[ProductInOrder]
+    created_at: Optional[str]  # Include created_at if needed
+    updated_at: Optional[str]  # Include updated_at if needed
+    products: List[ProductInOrder]  # Use the updated ProductInOrder schema
 
     class Config:
         orm_mode = True
+
 
 # SubCategory schemas
 class SubCategoryCreate(BaseModel):
