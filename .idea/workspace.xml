@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="52cab829-419d-4b49-9a89-15e5cde50038" name="Changes" comment="db_be_functionala">
+    <list default="true" id="52cab829-419d-4b49-9a89-15e5cde50038" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -81,7 +81,7 @@
       <workItem from="1727440932339" duration="4091000" />
       <workItem from="1727449631578" duration="14394000" />
       <workItem from="1729220783400" duration="29282000" />
-      <workItem from="1729625669247" duration="32705000" />
+      <workItem from="1729625669247" duration="38666000" />
     </task>
     <task id="LOCAL-00001" summary="db_be_functionala">
       <created>1724719469919</created>
@@ -153,7 +153,14 @@
       <option name="project" value="LOCAL" />
       <updated>1729222596476</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="db_be_functionala">
+      <created>1731350822577</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1731350822577</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

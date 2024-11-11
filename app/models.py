@@ -27,7 +27,8 @@ class Order(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    order_products = relationship('OrderProduct', back_populates='order')
+    # Add lazy='selectin' or lazy='joined' to pre-fetch the order_products relationship
+    order_products = relationship('OrderProduct', back_populates='order', lazy='selectin')
 
 
 class OrderProduct(Base):
