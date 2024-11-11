@@ -1,5 +1,4 @@
-import datetime
-
+from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -220,6 +219,7 @@ async def get_all_orders(db: AsyncSession):
             "id": order.id,
             "created_at": order.created_at.isoformat() if order.created_at else None,  # Convert to string
             "updated_at": order.updated_at.isoformat() if order.updated_at else None,  # Convert to string
+            "processed": order.processed,
             "products": [
                 {
                     "product": {
@@ -306,6 +306,7 @@ async def get_order_by_id(db: AsyncSession, order_id: int):
         "id": order.id,
         "created_at": order.created_at.isoformat() if order.created_at else None,  # Convert to string
         "updated_at": order.updated_at.isoformat() if order.updated_at else None,  # Convert to string
+        "processed": order.processed,
         "products": [
             {
                 "product": {
@@ -325,6 +326,168 @@ async def get_order_by_id(db: AsyncSession, order_id: int):
             for op in order.order_products if op.product  # Ensure product exists
         ]
     }
+
+
+# Get all orders where the 'processed' field is False
+async def get_all_orders_false(db: AsyncSession):
+    result = await db.execute(
+        select(models.Order)
+        .where(models.Order.processed == False)
+        .options(selectinload(models.Order.order_products).selectinload(OrderProduct.product))
+    )
+    orders = result.scalars().all()
+    return [
+        {
+            "id": order.id,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+            "processed": order.processed,
+            "products": [
+                {
+                    "product": {
+                        "id": op.product.id,
+                        "name": op.product.name,
+                        "producer": op.product.producer,
+                        "description": op.product.description,
+                        "price": op.product.price,
+                        "stock": op.product.stock,
+                        "category_id": op.product.category_id,
+                        "subcategory_id": op.product.subcategory_id,
+                        "image_url": op.product.image_url,
+                        "is_top_product": op.product.is_top_product
+                    },
+                    "quantity": op.quantity
+                }
+                for op in order.order_products if op.product
+            ]
+        }
+        for order in orders
+    ]
+
+
+# Get all orders where the 'processed' field is True
+async def get_all_orders_true(db: AsyncSession):
+    result = await db.execute(
+        select(models.Order)
+        .where(models.Order.processed == True)
+        .options(selectinload(models.Order.order_products).selectinload(OrderProduct.product))
+    )
+    orders = result.scalars().all()
+    return [
+        {
+            "id": order.id,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+            "processed": order.processed,
+            "products": [
+                {
+                    "product": {
+                        "id": op.product.id,
+                        "name": op.product.name,
+                        "producer": op.product.producer,
+                        "description": op.product.description,
+                        "price": op.product.price,
+                        "stock": op.product.stock,
+                        "category_id": op.product.category_id,
+                        "subcategory_id": op.product.subcategory_id,
+                        "image_url": op.product.image_url,
+                        "is_top_product": op.product.is_top_product
+                    },
+                    "quantity": op.quantity
+                }
+                for op in order.order_products if op.product
+            ]
+        }
+        for order in orders
+    ]
+
+
+# Update the 'processed' field of an order
+async def update_order_processed_status(db: AsyncSession, order_id: int, processed_status: bool):
+    # Fetch the order with its related products eagerly loaded
+    result = await db.execute(
+        select(models.Order).options(selectinload(models.Order.order_products).joinedload(OrderProduct.product))
+        .where(models.Order.id == order_id)
+    )
+    order = result.scalars().first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Update the processed status and update timestamp
+    order.processed = processed_status
+    order.updated_at = datetime.utcnow()  # Update only the `updated_at` field
+    db.add(order)
+    await db.commit()
+    await db.refresh(order)
+
+    # Extract response data outside of async context to avoid the MissingGreenlet error
+    products_data = [
+        {
+            "product": {
+                "id": product.product.id,
+                "name": product.product.name,
+                "producer": product.product.producer,
+                "description": product.product.description,
+                "price": product.product.price,
+                "stock": product.product.stock,
+                "category_id": product.product.category_id,
+                "subcategory_id": product.product.subcategory_id,
+                "image_url": product.product.image_url,
+                "is_top_product": product.product.is_top_product,
+            },
+            "quantity": product.quantity
+        } for product in order.order_products
+    ]
+
+    # Return the response as a dictionary with pre-extracted data
+    response = {
+        "id": order.id,
+        "created_at": order.created_at.isoformat(),
+        "updated_at": order.updated_at.isoformat(),
+        "processed": order.processed,
+        "products": products_data
+    }
+
+    return response
+
+
+async def get_orders_by_processed_status(db: AsyncSession, processed: bool):
+    result = await db.execute(
+        select(models.Order)
+        .where(models.Order.processed == processed)
+        .options(selectinload(models.Order.order_products).joinedload(OrderProduct.product))
+    )
+    orders = result.scalars().all()
+
+    # Convert the orders to a proper format
+    return [
+        {
+            "id": order.id,
+            "created_at": order.created_at,
+            "updated_at": order.updated_at,
+            "processed": order.processed,
+            "products": [
+                {
+                    "product": {
+                        "id": op.product.id,
+                        "name": op.product.name,
+                        "producer": op.product.producer,
+                        "description": op.product.description,
+                        "price": op.product.price,
+                        "stock": op.product.stock,
+                        "category_id": op.product.category_id,
+                        "subcategory_id": op.product.subcategory_id,
+                        "image_url": op.product.image_url,
+                        "is_top_product": op.product.is_top_product
+                    },
+                    "quantity": op.quantity
+                }
+                for op in order.order_products
+            ]
+        }
+        for order in orders
+    ]
 
 
 # ================================

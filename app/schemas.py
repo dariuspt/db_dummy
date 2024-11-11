@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Optional, Union
 
@@ -47,27 +48,42 @@ class ProductUpdate(BaseModel):
 
 
 # Order detail schema to represent each product in an order, with full product details
+# Product in Order schema
 class ProductInOrder(BaseModel):
-    product: Product  # Include the full product details
+    product_id: int
     quantity: int
 
-    class Config:
-        orm_mode = True
+class ProductDetailInOrder(BaseModel):
+    product: dict  # You can replace `dict` with a specific Product schema if needed
+    quantity: int
 
+# Order creation schema
 class OrderCreate(BaseModel):
     products: List[ProductInOrder]
 
     class Config:
         orm_mode = True
 
-class Order(BaseModel):
-    id: int
-    created_at: Optional[str]  # Include created_at if needed
-    updated_at: Optional[str]  # Include updated_at if needed
-    products: List[ProductInOrder]  # Use the updated ProductInOrder schema
+# Full order schema for response
+class ProductInOrderResponse(BaseModel):
+    product: dict  # Adjust this as needed for the product details
+    quantity: int
 
     class Config:
         orm_mode = True
+
+class Order(BaseModel):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    processed: bool
+    products: List[ProductInOrderResponse]  # Make sure this matches your response
+
+    class Config:
+        orm_mode = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),  # Ensure datetime serialization
+        }
 
 
 # SubCategory schemas
