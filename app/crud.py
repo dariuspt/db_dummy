@@ -1,9 +1,12 @@
+import datetime
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, selectinload
 from . import models, schemas
 from typing import Optional
+from app.models import OrderProduct
 
 # ================================
 # CRUD for Products
@@ -198,44 +201,80 @@ async def get_product_by_id_only_delete(db: AsyncSession, product_id: int):
 # CRUD for Orders
 # ================================
 
-# Create a new order
-async def create_order(db: AsyncSession, order: schemas.OrderCreate):
-    db_order = models.Order(**order.dict())
-    db.add(db_order)
-    await db.commit()
-    await db.refresh(db_order)
-    return db_order
-
-# Get all orders with optional pagination
-async def get_orders(db: AsyncSession, skip: int = 0, limit: int = 10):
-    result = await db.execute(
-        select(models.Order).offset(skip).limit(limit).options(joinedload(models.Order.product))
-    )
-    return result.unique().scalars().all()
-
-# Get an order by its ID
-async def get_order_by_id(db: AsyncSession, order_id: int):
-    result = await db.execute(select(models.Order).where(models.Order.id == order_id))
-    return result.scalars().first()
-
-# Update an order
-async def update_order(db: AsyncSession, order: models.Order, updates: schemas.OrderUpdate):
-    update_data = updates.dict(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(order, key, value)
-
+# Create a new order and update product stock
+async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
+    # Create the order record
+    order = models.Order()
     db.add(order)
     await db.commit()
     await db.refresh(order)
-    return order
 
-# Delete an order
-async def delete_order(db: AsyncSession, order_id: int):
-    db_order = await get_order_by_id(db, order_id)
-    if db_order:
-        await db.delete(db_order)
-        await db.commit()
-    return db_order
+    if not order_data.products:
+        raise HTTPException(status_code=400, detail="Order must include at least one product")
+
+    # Insert products into the order_products table and update product stock
+    for item in order_data.products:
+        if not item.product_id:
+            raise HTTPException(status_code=400, detail="Product ID is required for each product")
+
+        # Fetch the product asynchronously
+        product = await db.get(models.Product, item.product_id)
+
+        if product and product.stock >= item.quantity:
+            product.stock -= item.quantity
+            db.add(product)
+        else:
+            raise HTTPException(status_code=400, detail=f"Not enough stock for product ID {item.product_id}")
+
+        # Add the order-product relation
+        db.add(models.OrderProduct(order_id=order.id, product_id=item.product_id, quantity=item.quantity))
+
+    await db.commit()
+
+    # Return the created order, ensuring all related fields are loaded asynchronously
+    result = await db.execute(
+        select(models.Order).where(models.Order.id == order.id).options(
+            selectinload(models.Order.order_products).joinedload(models.OrderProduct.product)
+        )
+    )
+    created_order = result.scalars().first()
+
+    if not created_order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    return created_order
+
+# Get order by ID
+async def get_order_by_id(db: AsyncSession, order_id: int):
+    result = await db.execute(
+        select(models.Order).where(models.Order.id == order_id).options(
+            joinedload(models.Order.order_products).joinedload(models.OrderProduct.product)
+        )
+    )
+    order = result.scalars().first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Construct response data
+    products_data = [
+        {
+            "product_id": op.product.id,
+            "name": op.product.name,
+            "price": op.product.price,
+            "quantity": op.quantity,
+            "category_name": op.product.category.name if op.product.category else None,
+        }
+        for op in order.order_products
+    ]
+
+    return {
+        "id": order.id,
+        "created_at": order.created_at,
+        "updated_at": order.updated_at,
+        "products": products_data
+    }
+
 
 # ================================
 # CRUD for Categories

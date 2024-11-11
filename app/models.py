@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Table, CheckConstraint, DateTime, func
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -18,14 +18,26 @@ class Product(Base):
 
     category = relationship("Category", back_populates="products")
     subcategory = relationship("SubCategory", back_populates="products")
+    order_products = relationship('OrderProduct', back_populates='product')
 
 
 class Order(Base):
-    __tablename__ = "orders"
+    __tablename__ = 'orders'
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey('products.id'))
-    quantity = Column(Integer)
-    product = relationship("Product")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    order_products = relationship('OrderProduct', back_populates='order')
+
+
+class OrderProduct(Base):
+    __tablename__ = 'order_products'
+    order_id = Column(Integer, ForeignKey('orders.id', ondelete='CASCADE'), primary_key=True)
+    product_id = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), primary_key=True)
+    quantity = Column(Integer, nullable=False)
+
+    order = relationship('Order', back_populates='order_products')
+    product = relationship('Product', back_populates='order_products')
 
 
 class Category(Base):

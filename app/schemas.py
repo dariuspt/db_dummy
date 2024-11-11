@@ -46,28 +46,23 @@ class ProductUpdate(BaseModel):
         from_attributes = True  # Updated to from_attributes
 
 
-# Order schemas
-class OrderBase(BaseModel):
+# Order detail schema to represent each product in an order
+class ProductInOrder(BaseModel):
     product_id: int
     quantity: int
 
-class OrderCreate(OrderBase):
-    pass
+class OrderCreate(BaseModel):
+    products: List[ProductInOrder]
 
-class Order(OrderBase):
+    class Config:
+        orm_mode = True
+
+class Order(BaseModel):
     id: int
+    products: List[ProductInOrder]
 
     class Config:
-        from_attributes = True  # Updated to from_attributes
-
-class OrderUpdate(BaseModel):
-    product_id: Optional[int] = None
-    quantity: Optional[int] = None
-    order_date: Optional[str] = None  # You can use a date type if needed
-
-    class Config:
-        from_attributes = True
-
+        orm_mode = True
 
 # SubCategory schemas
 class SubCategoryCreate(BaseModel):
