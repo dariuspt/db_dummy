@@ -245,7 +245,7 @@ async def get_all_orders(db: AsyncSession):
 # Create a new order and update product stock
 async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
     # Create the order record
-    order = models.Order()
+    order = models.Order(created_at=datetime.utcnow(), updated_at=None)
     db.add(order)
     await db.commit()  # Commit to assign an ID to `order`
     await db.refresh(order)
@@ -255,7 +255,6 @@ async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
 
     # Helper function to handle product and stock validation
     async def process_product(item):
-        # Replace db.get with a properly constructed select statement
         result = await db.execute(select(models.Product).where(models.Product.id == item.product_id))
         product = result.scalars().first()
 
@@ -277,16 +276,35 @@ async def create_order(db: AsyncSession, order_data: schemas.OrderCreate):
     await db.commit()
     await db.refresh(order)
 
-    # Construct the response that matches the Order schema
-    products_data = [
-        {"product_id": op.product_id, "quantity": op.quantity}
-        for op in order_products
-    ]
+    # Construct the response with full product details
+    products_data = []
+    for op in order_products:
+        product_result = await db.execute(select(models.Product).where(models.Product.id == op.product_id))
+        product = product_result.scalars().first()
+        products_data.append({
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "producer": product.producer,
+                "description": product.description,
+                "price": product.price,
+                "stock": product.stock,
+                "category_id": product.category_id,
+                "subcategory_id": product.subcategory_id,
+                "image_url": product.image_url,
+                "is_top_product": product.is_top_product,
+            },
+            "quantity": op.quantity
+        })
 
     return {
         "id": order.id,
+        "created_at": order.created_at.isoformat(),
+        "updated_at": None,
+        "processed": order.processed,
         "products": products_data
     }
+
 
 # Get order by ID
 async def get_order_by_id(db: AsyncSession, order_id: int):
@@ -404,7 +422,6 @@ async def get_all_orders_true(db: AsyncSession):
 
 # Update the 'processed' field of an order
 async def update_order_processed_status(db: AsyncSession, order_id: int, processed_status: bool):
-    # Fetch the order with its related products eagerly loaded
     result = await db.execute(
         select(models.Order).options(selectinload(models.Order.order_products).joinedload(OrderProduct.product))
         .where(models.Order.id == order_id)
@@ -414,16 +431,16 @@ async def update_order_processed_status(db: AsyncSession, order_id: int, process
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Update the processed status and update timestamp
     order.processed = processed_status
-    order.updated_at = datetime.utcnow()  # Update only the `updated_at` field
+    order.updated_at = datetime.utcnow()
     db.add(order)
     await db.commit()
     await db.refresh(order)
 
-    # Extract response data outside of async context to avoid the MissingGreenlet error
-    products_data = [
-        {
+    # Construct the response with full product details
+    products_data = []
+    for product in order.order_products:
+        products_data.append({
             "product": {
                 "id": product.product.id,
                 "name": product.product.name,
@@ -437,11 +454,9 @@ async def update_order_processed_status(db: AsyncSession, order_id: int, process
                 "is_top_product": product.product.is_top_product,
             },
             "quantity": product.quantity
-        } for product in order.order_products
-    ]
+        })
 
-    # Return the response as a dictionary with pre-extracted data
-    response = {
+    return {
         "id": order.id,
         "created_at": order.created_at.isoformat(),
         "updated_at": order.updated_at.isoformat(),
@@ -449,7 +464,6 @@ async def update_order_processed_status(db: AsyncSession, order_id: int, process
         "products": products_data
     }
 
-    return response
 
 
 async def get_orders_by_processed_status(db: AsyncSession, processed: bool):
