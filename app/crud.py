@@ -182,10 +182,11 @@ async def update_product(db: AsyncSession, product: models.Product, updates: dic
 
 # Delete a product
 async def delete_product(db: AsyncSession, db_product: models.Product):
-    # Ensure the instance is an actual SQLAlchemy model
     if db_product:
+        # Proceed with the deletion directly
         await db.delete(db_product)
-        await db.commit()
+        await db.commit()  # Commit the deletion
+
         return db_product
     return None
 

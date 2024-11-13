@@ -11,14 +11,18 @@ class Product(Base):
     description = Column(String, nullable=True)
     price = Column(Float)
     stock = Column(Integer)
-    category_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
-    subcategory_id = Column(Integer, ForeignKey("subcategories.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey('categories.id', ondelete='SET NULL'), nullable=True)
+    subcategory_id = Column(Integer, ForeignKey("subcategories.id", ondelete='SET NULL'), nullable=True)
     image_url = Column(String, nullable=True)
-    is_top_product = Column(Boolean)  # New boolean field for top products
+    is_top_product = Column(Boolean)
 
     category = relationship("Category", back_populates="products")
     subcategory = relationship("SubCategory", back_populates="products")
-    order_products = relationship('OrderProduct', back_populates='product')
+    order_products = relationship(
+        'OrderProduct',
+        back_populates='product',
+        cascade="all, delete-orphan"  # Cascade delete for order-products
+    )
 
 
 class Order(Base):
