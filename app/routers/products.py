@@ -18,8 +18,8 @@ async def create_product(
     description: str = Form(None),
     price: float = Form(...),
     stock: int = Form(...),
-    category: str = Form(None),  # Pass category name
-    subcategory: str = Form(None),
+    category: Optional[str] = Form(None),  # Optional category name
+    subcategory: Optional[str] = Form(None),  # Optional subcategory name
     is_top_product: bool = Form(None),
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: AsyncSession = Depends(get_db)
@@ -34,15 +34,23 @@ async def create_product(
         except Exception as e:
             raise HTTPException(status_code=400, detail="Image upload failed: " + str(e))
 
-    # Lookup category_id based on category name
-    result = await db.execute(select(models.Category).where(models.Category.name == category))
-    category_instance = result.scalars().first()
+    # Lookup category_id based on category name (optional)
+    category_instance = None
+    if category:
+        result = await db.execute(select(models.Category).where(models.Category.name == category))
+        category_instance = result.scalars().first()
 
-    result = await db.execute(select(models.SubCategory).where(models.SubCategory.name == subcategory))
-    subcategory_instance = result.scalars().first()
+        if not category_instance:
+            raise HTTPException(status_code=404, detail="Category not found")
 
-    if not category_instance:
-        raise HTTPException(status_code=404, detail="Category not found")
+    # Lookup subcategory_id based on subcategory name (optional)
+    subcategory_instance = None
+    if subcategory:
+        result = await db.execute(select(models.SubCategory).where(models.SubCategory.name == subcategory))
+        subcategory_instance = result.scalars().first()
+
+        if subcategory and not subcategory_instance:
+            raise HTTPException(status_code=404, detail="Subcategory not found")
 
     # Prepare the product creation data
     product_data = schemas.ProductCreate(
@@ -51,13 +59,14 @@ async def create_product(
         description=description,
         price=price,
         stock=stock,
-        category_id=category_instance.id,  # Use the resolved category_id
+        category_id=category_instance.id if category_instance else None,  # Use the resolved category_id or None
         is_top_product=is_top_product,
-        subcategory_id=subcategory_instance.id
+        subcategory_id=subcategory_instance.id if subcategory_instance else None  # Use the resolved subcategory_id or None
     )
 
     # Pass the image URL to the product creation function
     return await crud.create_product(db=db, product=product_data, image_url=image_url)
+
 
 
 @router.get("/", response_model=List[schemas.Product])

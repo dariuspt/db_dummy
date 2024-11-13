@@ -9,13 +9,14 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     price: float
     stock: int
-    category_id: Optional[int] = None
-    subcategory_id: Optional[int] = None
+    category_id: Optional[int] = None  # Make this optional
+    subcategory_id: Optional[int] = None  # Make this optional
     image_url: Optional[str] = None
     is_top_product: Optional[bool] = None
 
     class Config:
         orm_mode = True
+
 
 class Product(BaseModel):
     id: int
