@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from .. import schemas, crud
@@ -13,6 +13,7 @@ router = APIRouter()
 
 @router.post("/", response_model=schemas.Product)
 async def create_product(
+    response: Response,  # Add response to modify headers
     name: str = Form(...),
     producer: str = Form(...),
     description: str = Form(None),
@@ -24,6 +25,12 @@ async def create_product(
     image: UploadFile = File(None),  # Optional image file for Cloudinary upload
     db: AsyncSession = Depends(get_db)
 ):
+    # Add CORS headers directly to the response
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+
     image_url = None  # Default image URL is None
 
     # If an image is provided, upload it to Cloudinary
@@ -59,9 +66,9 @@ async def create_product(
         description=description,
         price=price,
         stock=stock,
-        category_id=category_instance.id if category_instance else None,  # Use the resolved category_id or None
+        category_id=category_instance.id if category_instance else None,
         is_top_product=is_top_product,
-        subcategory_id=subcategory_instance.id if subcategory_instance else None  # Use the resolved subcategory_id or None
+        subcategory_id=subcategory_instance.id if subcategory_instance else None
     )
 
     # Pass the image URL to the product creation function
