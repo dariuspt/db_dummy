@@ -6,8 +6,8 @@ from .config import DATABASE_URL
 engine = create_async_engine(
     DATABASE_URL,
     echo=True,
-    pool_size=5,             # Set the number of connections in the pool
-    max_overflow=10,          # Allow a few overflow connections if the pool is exhausted
+    pool_size=10,             # Set the number of connections in the pool
+    max_overflow=15,          # Allow a few overflow connections if the pool is exhausted
     pool_timeout=30,          # Set timeout (in seconds) for acquiring a connection from the pool
     pool_recycle=1800,        # Recycle (close) connections after 30 minutes (1800 seconds)
     pool_pre_ping=True        # Check connections before using them to ensure they are valid

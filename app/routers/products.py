@@ -4,12 +4,13 @@ from typing import List, Optional
 from .. import schemas, crud
 from ..database import get_db
 import cloudinary.uploader
-from ..crud import get_product_with_category, get_product_by_name ,get_product_by_id
+from ..crud import get_product_with_category, get_product_by_name, get_product_by_id
 from sqlalchemy.future import select
 from .. import models
 import re
 
 router = APIRouter()
+
 
 @router.post("/", response_model=schemas.Product)
 async def create_product(
@@ -75,7 +76,6 @@ async def create_product(
     return await crud.create_product(db=db, product=product_data, image_url=image_url)
 
 
-
 @router.get("/", response_model=List[schemas.Product])
 async def read_products(db: AsyncSession = Depends(get_db)):
     # Fetch all products without pagination
@@ -84,6 +84,7 @@ async def read_products(db: AsyncSession = Depends(get_db)):
         return products
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/top", response_model=List[schemas.Product])
 async def get_top_products(db: AsyncSession = Depends(get_db)):
@@ -172,6 +173,7 @@ async def update_product(
 
     return updated_product
 
+
 @router.delete("/{product_id}", response_model=schemas.Product)
 async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     # Fetch the product from the database
@@ -183,6 +185,7 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_db)):
     deleted_product = await crud.delete_product(db=db, db_product=db_product)
     return deleted_product
 
+
 async def get_product_and_category(db: AsyncSession, product_id: int):
     return await get_product_with_category(db, product_id)
 
@@ -192,8 +195,8 @@ async def get_product_and_category(db: AsyncSession, product_id: int):
 async def get_products_by_category(category_id: int, db: AsyncSession = Depends(get_db)):
     return await crud.get_products_by_category(db=db, category_id=category_id)
 
+
 # Get products by SubCategory
 @router.get("/subcategories/{subcategory_id}/products", response_model=List[schemas.Product])
 async def get_products_by_subcategory(subcategory_id: int, db: AsyncSession = Depends(get_db)):
     return await crud.get_products_by_subcategory(db=db, subcategory_id=subcategory_id)
-
