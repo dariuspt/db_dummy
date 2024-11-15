@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
-from .. import schemas, crud
+from app import schemas, crud
 from ..database import get_db
 import cloudinary.uploader
 from ..crud import get_product_with_category, get_product_by_name, get_product_by_id
