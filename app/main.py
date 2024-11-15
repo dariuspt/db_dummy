@@ -21,11 +21,3 @@ app.include_router(products.router, prefix="/products", tags=["Products"])
 app.include_router(orders.router, prefix="/orders", tags=["Orders"])
 app.include_router(categories.router, prefix="/categories", tags=["Categories"])
 app.include_router(subcategories.router, prefix="/subcategories", tags=["Subcategories"])
-
-# Serve static files like JS, CSS, fonts, etc., from the 'static/dist' folder
-app.mount("/static", StaticFiles(directory="static/dist"), name="static")
-
-# Serve index.html for the root URL
-@app.get("/")
-async def serve_frontend():
-    return FileResponse(os.path.join('static', 'dist', 'index.html'))
